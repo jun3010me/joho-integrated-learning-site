@@ -15,7 +15,7 @@ export class CompressionTool {
     this.treeSteps = []
     this.currentTreeStep = 0
     this.lastTouch = null // タッチのデバウンス用
-    this.isInitialized = false
+    this.canvasInitialized = false
   }
 
   render(container) {
@@ -354,61 +354,80 @@ export class CompressionTool {
       </div>
     `
 
+    // イベントリスナーとSVG初期化
     this.setupEventListeners()
     this.initializeSVG()
     
-    // 即座に初期化を試行し、失敗したら再試行
-    this.initializeCanvas()
-    
-    // フォールバック：少し遅延して再実行
-    setTimeout(() => {
-      this.initializeCanvas()
-    }, 100)
-    
-    // 最終フォールバック：長い遅延で再実行
-    setTimeout(() => {
-      this.initializeCanvas()
-    }, 500)
+    // 強制的に初期表示を実行
+    this.forceInitialDisplay()
   }
 
-  // キャンバス初期化メソッド
-  initializeCanvas() {
-    console.log('initializeCanvas called')
-    const canvas = document.getElementById('pixel-grid')
+  // 強制初期表示メソッド
+  forceInitialDisplay() {
+    console.log('forceInitialDisplay called')
     
-    if (canvas) {
-      console.log('Canvas found, setting up and drawing')
-      this.setupCanvasElement(canvas, 'main')
-      this.drawGrid(canvas, this.gridData)
-      this.updateRunLengthEncoding()
-      this.isInitialized = true
-      return true
-    } else {
-      console.warn('Canvas not found in initializeCanvas')
+    // requestAnimationFrameを使って次のフレームで実行
+    requestAnimationFrame(() => {
+      this.setupCanvasAndDraw()
+    })
+    
+    // フォールバック用の複数タイマー
+    setTimeout(() => this.setupCanvasAndDraw(), 10)
+    setTimeout(() => this.setupCanvasAndDraw(), 100)
+    setTimeout(() => this.setupCanvasAndDraw(), 500)
+  }
+
+  // キャンバス設定と描画を一括実行
+  setupCanvasAndDraw() {
+    console.log('setupCanvasAndDraw called')
+    
+    const canvas = document.getElementById('pixel-grid')
+    if (!canvas) {
+      console.warn('Canvas not found')
       return false
     }
-  }
-
-  // 外部から呼び出し可能な再初期化メソッド
-  forceRefresh() {
-    console.log('forceRefresh called')
-    if (!this.isInitialized) {
-      setTimeout(() => {
-        this.setupCanvas()
-        this.updateDisplay()
-        this.isInitialized = true
-      }, 100)
-    } else {
-      this.updateDisplay()
+    
+    console.log('Canvas found, initializing...')
+    
+    // キャンバス設定
+    canvas.width = 320
+    canvas.height = 320
+    
+    // イベントリスナー設定
+    this.setupCanvasElement(canvas, 'main')
+    
+    // 強制描画
+    this.drawGrid(canvas, this.gridData)
+    
+    // 練習用キャンバスも設定
+    const practiceCanvas = document.getElementById('practice-grid')
+    if (practiceCanvas) {
+      practiceCanvas.width = 320
+      practiceCanvas.height = 320
+      this.setupCanvasElement(practiceCanvas, 'practice')
+      this.drawGrid(practiceCanvas, this.practiceGridData)
     }
+    
+    // 圧縮結果更新
+    this.updateRunLengthEncoding()
+    
+    this.canvasInitialized = true
+    console.log('Canvas initialization complete')
+    return true
   }
 
-  // 外部から呼び出し可能な初期表示メソッド  
+  // 外部から呼び出し可能なメソッド
   show() {
     console.log('CompressionTool show() called')
-    setTimeout(() => {
-      this.forceRefresh()
-    }, 50)
+    this.forceInitialDisplay()
+  }
+
+  // セクション切り替え時の再表示
+  refreshCurrentSection() {
+    console.log('refreshCurrentSection called')
+    if (this.currentSection === 'run-length') {
+      this.setupCanvasAndDraw()
+    }
   }
 
   setupEventListeners() {
@@ -482,6 +501,7 @@ export class CompressionTool {
   }
 
   switchSection(section) {
+    console.log(`Switching to section: ${section}`)
     this.currentSection = section
     
     // ナビゲーションボタンの状態更新
@@ -494,9 +514,22 @@ export class CompressionTool {
 
     // セクションの表示切り替え
     document.querySelectorAll('.content-section').forEach(sec => {
-      sec.classList.toggle('active', sec.id === section)
-      sec.style.display = sec.id === section ? 'block' : 'none'
+      if (sec.id === section) {
+        sec.classList.add('active')
+        sec.style.display = 'block'
+        console.log(`Showing section: ${sec.id}`)
+      } else {
+        sec.classList.remove('active')
+        sec.style.display = 'none'
+      }
     })
+
+    // セクション切り替え後にキャンバスを再初期化
+    if (section === 'run-length') {
+      setTimeout(() => {
+        this.setupCanvasAndDraw()
+      }, 50)
+    }
   }
 
   switchSubsection(section, subsection) {
@@ -521,22 +554,13 @@ export class CompressionTool {
     }
   }
 
-  setupCanvas() {
-    const canvas = document.getElementById('pixel-grid')
-    const practiceCanvas = document.getElementById('practice-grid')
-    
-    if (canvas) {
-      this.setupCanvasElement(canvas, 'main')
-      this.drawGrid(canvas, this.gridData)
-    }
-    
-    if (practiceCanvas) {
-      this.setupCanvasElement(practiceCanvas, 'practice')
-      this.drawGrid(practiceCanvas, this.practiceGridData)
-    }
-  }
 
   setupCanvasElement(canvas, type) {
+    // 重複イベント設定を防ぐ
+    if (canvas.dataset.eventsSetup === 'true') {
+      return
+    }
+    
     // マウスイベント
     canvas.addEventListener('click', (e) => this.handleCanvasClick(e, canvas, type))
     
@@ -555,6 +579,9 @@ export class CompressionTool {
         }
       }
     })
+    
+    // イベント設定完了をマーク
+    canvas.dataset.eventsSetup = 'true'
   }
 
   handleCanvasClick(e, canvas, type) {
@@ -801,26 +828,6 @@ export class CompressionTool {
     }
   }
 
-  updateDisplay() {
-    console.log('updateDisplay called')
-    
-    // 初期グリッドを強制描画
-    const canvas = document.getElementById('pixel-grid')
-    if (canvas) {
-      console.log('Drawing main grid with data:', this.gridData)
-      this.drawGrid(canvas, this.gridData)
-    } else {
-      console.warn('pixel-grid canvas not found')
-    }
-    
-    const practiceCanvas = document.getElementById('practice-grid')
-    if (practiceCanvas) {
-      console.log('Drawing practice grid')
-      this.drawGrid(practiceCanvas, this.practiceGridData)
-    }
-    
-    this.updateRunLengthEncoding()
-  }
 
   // ハフマン符号化関連メソッド
   updateFrequencyTotal() {
