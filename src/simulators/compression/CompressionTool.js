@@ -541,73 +541,120 @@ export class CompressionTool {
   }
 
   setupEventListeners() {
-    // メインナビゲーション
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-      btn.addEventListener('click', (event) => {
-        if (event && event.target && event.target.dataset) {
-          this.switchSection(event.target.dataset.section)
-        }
-      })
-    })
-
-    // セクションナビゲーション
-    document.querySelectorAll('.section-btn').forEach(btn => {
-      btn.addEventListener('click', (event) => {
-        if (event && event.target && event.target.dataset) {
-          const section = this.currentSection
-          const subsection = event.target.dataset.subsection
-          this.switchSubsection(section, subsection)
-        }
-      })
-    })
-
-    // グリッドコントロール
-    document.getElementById('clear-grid')?.addEventListener('click', () => this.clearGrid())
-    document.getElementById('pattern-vertical')?.addEventListener('click', () => this.setPattern('vertical'))
-    document.getElementById('pattern-horizontal')?.addEventListener('click', () => this.setPattern('horizontal'))
-    document.getElementById('pattern-checker')?.addEventListener('click', () => this.setPattern('checker'))
-    document.getElementById('pattern-random')?.addEventListener('click', () => this.setPattern('random'))
-
-    // 問題生成
-    document.getElementById('generate-rl-problem')?.addEventListener('click', () => this.generateRunLengthProblem())
-    document.getElementById('generate-hf-problem')?.addEventListener('click', () => this.generateHuffmanProblem())
-
-    // ハフマン符号化
-    document.getElementById('build-huffman-tree')?.addEventListener('click', () => this.buildHuffmanTree())
+    console.log('=== setupEventListeners started ===')
     
-    // 出現頻度入力
-    ['a', 'b', 'c', 'd', 'e'].forEach(character => {
-      const input = document.getElementById(`freq-${character}`)
-      if (input) {
-        input.addEventListener('input', (event) => {
-          if (event) {
-            this.updateFrequencyTotal()
+    try {
+      // メインナビゲーション
+      console.log('Setting up nav-btn listeners...')
+      const navBtns = document.querySelectorAll('.nav-btn')
+      console.log('Found nav buttons:', navBtns.length)
+      
+      navBtns.forEach(btn => {
+        if (btn) {
+          btn.addEventListener('click', (event) => {
+            if (event && event.target && event.target.dataset) {
+              this.switchSection(event.target.dataset.section)
+            }
+          })
+        }
+      })
+      console.log('Nav buttons setup complete')
+    } catch (error) {
+      console.error('Error setting up nav buttons:', error)
+    }
+
+    try {
+      // セクションナビゲーション
+      console.log('Setting up section-btn listeners...')
+      const sectionBtns = document.querySelectorAll('.section-btn')
+      console.log('Found section buttons:', sectionBtns.length)
+      
+      sectionBtns.forEach(btn => {
+        if (btn) {
+          btn.addEventListener('click', (event) => {
+            if (event && event.target && event.target.dataset) {
+              const section = this.currentSection
+              const subsection = event.target.dataset.subsection
+              this.switchSubsection(section, subsection)
+            }
+          })
+        }
+      })
+      console.log('Section buttons setup complete')
+    } catch (error) {
+      console.error('Error setting up section buttons:', error)
+    }
+
+    try {
+      // グリッドコントロール
+      console.log('Setting up grid control listeners...')
+      document.getElementById('clear-grid')?.addEventListener('click', () => this.clearGrid())
+      document.getElementById('pattern-vertical')?.addEventListener('click', () => this.setPattern('vertical'))
+      document.getElementById('pattern-horizontal')?.addEventListener('click', () => this.setPattern('horizontal'))
+      document.getElementById('pattern-checker')?.addEventListener('click', () => this.setPattern('checker'))
+      document.getElementById('pattern-random')?.addEventListener('click', () => this.setPattern('random'))
+      console.log('Grid controls setup complete')
+
+      // 問題生成
+      console.log('Setting up problem generation listeners...')
+      document.getElementById('generate-rl-problem')?.addEventListener('click', () => this.generateRunLengthProblem())
+      document.getElementById('generate-hf-problem')?.addEventListener('click', () => this.generateHuffmanProblem())
+      console.log('Problem generation setup complete')
+
+      // ハフマン符号化
+      console.log('Setting up Huffman listeners...')
+      document.getElementById('build-huffman-tree')?.addEventListener('click', () => this.buildHuffmanTree())
+      console.log('Huffman listeners setup complete')
+      
+      // 出現頻度入力
+      console.log('Setting up frequency input listeners...')
+      ['a', 'b', 'c', 'd', 'e'].forEach(character => {
+        const input = document.getElementById(`freq-${character}`)
+        if (input) {
+          input.addEventListener('input', (event) => {
+            if (event) {
+              this.updateFrequencyTotal()
+            }
+          })
+        }
+      })
+      console.log('Frequency inputs setup complete')
+    } catch (error) {
+      console.error('Error setting up grid/problem/huffman listeners:', error)
+    }
+
+    try {
+      // 符号化練習
+      console.log('Setting up encoding practice listeners...')
+      document.getElementById('encode-text')?.addEventListener('click', () => this.encodeText())
+
+      // 木構築コントロール
+      console.log('Setting up tree control listeners...')
+      document.getElementById('tree-step-back')?.addEventListener('click', () => this.treeStepBack())
+      document.getElementById('tree-step-forward')?.addEventListener('click', () => this.treeStepForward())
+      document.getElementById('tree-auto-play')?.addEventListener('click', () => this.treeAutoPlay())
+      document.getElementById('tree-reset')?.addEventListener('click', () => this.treeReset())
+      console.log('Tree controls setup complete')
+
+      // 比較ツール
+      console.log('Setting up comparison tool listeners...')
+      document.getElementById('compare-methods')?.addEventListener('click', () => this.compareMethods())
+      
+      // 比較テキストのリアルタイムバリデーション
+      const comparisonText = document.getElementById('comparison-text')
+      if (comparisonText) {
+        comparisonText.addEventListener('input', (event) => {
+          if (event && event.target) {
+            this.validateComparisonInput(event)
           }
         })
       }
-    })
-
-    // 符号化練習
-    document.getElementById('encode-text')?.addEventListener('click', () => this.encodeText())
-
-    // 木構築コントロール
-    document.getElementById('tree-step-back')?.addEventListener('click', () => this.treeStepBack())
-    document.getElementById('tree-step-forward')?.addEventListener('click', () => this.treeStepForward())
-    document.getElementById('tree-auto-play')?.addEventListener('click', () => this.treeAutoPlay())
-    document.getElementById('tree-reset')?.addEventListener('click', () => this.treeReset())
-
-    // 比較ツール
-    document.getElementById('compare-methods')?.addEventListener('click', () => this.compareMethods())
-    
-    // 比較テキストのリアルタイムバリデーション
-    const comparisonText = document.getElementById('comparison-text')
-    if (comparisonText) {
-      comparisonText.addEventListener('input', (event) => {
-        if (event && event.target) {
-          this.validateComparisonInput(event)
-        }
-      })
+      console.log('Comparison tools setup complete')
+    } catch (error) {
+      console.error('Error setting up encoding/tree/comparison listeners:', error)
     }
+    
+    console.log('=== setupEventListeners completed successfully ===')
   }
 
   switchSection(section) {
