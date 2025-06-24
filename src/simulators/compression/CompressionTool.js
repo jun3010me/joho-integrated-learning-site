@@ -357,24 +357,24 @@ export class CompressionTool {
 
     console.log('=== HTML inserted, setting up listeners ===')
     
-    // DOM状態を確認
+    // DOM要素が完全に作成されてからイベントリスナーを設定
     setTimeout(() => {
       console.log('=== DOM Check After HTML Insert ===')
       console.log('pixel-grid exists:', !!document.getElementById('pixel-grid'))
       console.log('run-length section exists:', !!document.getElementById('run-length'))
       console.log('run-length section visible:', document.getElementById('run-length')?.style.display !== 'none')
       console.log('all canvas elements:', document.querySelectorAll('canvas'))
+      
+      // DOM要素作成完了後にイベントリスナーとSVG初期化
+      this.setupEventListeners()
+      this.initializeSVG()
+      
+      // 初期セクションを確実に表示
+      this.ensureInitialSectionVisible()
+      
+      // 強制的に初期表示を実行
+      this.forceInitialDisplay()
     }, 0)
-    
-    // イベントリスナーとSVG初期化
-    this.setupEventListeners()
-    this.initializeSVG()
-    
-    // 初期セクションを確実に表示
-    this.ensureInitialSectionVisible()
-    
-    // 強制的に初期表示を実行
-    this.forceInitialDisplay()
   }
 
   // 初期セクション表示を確実にする
@@ -470,8 +470,11 @@ export class CompressionTool {
     
     const canvas = document.getElementById('pixel-grid')
     if (!canvas) {
-      console.warn('Canvas not found, checking DOM...')
-      console.log('Available elements:', document.querySelectorAll('#run-length canvas'))
+      console.error('=== CANVAS NOT FOUND ===')
+      console.log('Available elements in run-length:', runLengthSection.querySelectorAll('*'))
+      console.log('All canvas elements:', document.querySelectorAll('canvas'))
+      console.log('pixel-grid by ID:', document.getElementById('pixel-grid'))
+      console.log('Run-length section HTML:', runLengthSection.innerHTML.slice(0, 500))
       return false
     }
     
