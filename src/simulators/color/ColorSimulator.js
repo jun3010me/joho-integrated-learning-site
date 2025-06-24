@@ -430,8 +430,8 @@ export class ColorSimulator {
     const levels = Math.pow(2, this.bitDepth)
     const { r, g, b } = this.rgbValues
     
-    // ビット深度が低い場合は離散的なセグメント表示
-    if (this.bitDepth <= 4) {
+    // ビット深度が8以下は離散的なセグメント表示
+    if (this.bitDepth <= 8) {
       // 離散的なセグメント表示
       gradationBar.innerHTML = ''
       gradationBar.style.background = 'none'
@@ -447,8 +447,6 @@ export class ColorSimulator {
         segment.style.backgroundColor = `rgb(${gradR}, ${gradG}, ${gradB})`
         segment.style.width = `${100 / levels}%`
         segment.style.height = '100%'
-        segment.style.border = '1px solid #ccc'
-        segment.style.boxSizing = 'border-box'
         segment.title = `段階 ${i + 1}: rgb(${gradR}, ${gradG}, ${gradB})`
         
         gradationBar.appendChild(segment)
@@ -470,7 +468,7 @@ export class ColorSimulator {
       gradationBar.style.background = `linear-gradient(to right, ${gradientStops.join(', ')})`
     }
     
-    document.getElementById('gradation-info').textContent = `現在の色の階調を${levels}段階で表示しています${this.bitDepth <= 4 ? '（離散表示）' : '（滑らか表示）'}`
+    document.getElementById('gradation-info').textContent = `現在の色の階調を${levels}段階で表示しています${this.bitDepth <= 8 ? '（離散表示）' : '（滑らか表示）'}`
   }
 
   cleanup() {
