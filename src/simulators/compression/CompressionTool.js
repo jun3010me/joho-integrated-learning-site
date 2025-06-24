@@ -164,6 +164,177 @@ export class CompressionTool {
             </div>
           </div>
         </section>
+
+        <!-- ハフマン符号化セクション -->
+        <section id="huffman" class="content-section hidden">
+          <div class="card mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">ハフマン符号化</h2>
+            
+            <div class="flex flex-wrap justify-center gap-2 mb-6">
+              <button class="section-btn active" data-subsection="basic">基本概念</button>
+              <button class="section-btn" data-subsection="tree">木構築</button>
+              <button class="section-btn" data-subsection="encode">符号化練習</button>
+            </div>
+
+            <!-- 基本概念 -->
+            <div id="hf-basic" class="subsection active">
+              <h3 class="text-xl font-semibold text-gray-800 mb-4">出現頻度と符号表</h3>
+              
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="space-y-4">
+                  <h4 class="text-lg font-semibold text-gray-800">文字の出現頻度を入力してください (%)</h4>
+                  <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-3">
+                      <div class="flex items-center gap-2">
+                        <label class="w-8 text-sm font-medium">A:</label>
+                        <input type="number" id="freq-a" min="0" max="100" value="30" class="flex-1 px-2 py-1 border rounded">
+                        <span class="text-sm">%</span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <label class="w-8 text-sm font-medium">B:</label>
+                        <input type="number" id="freq-b" min="0" max="100" value="25" class="flex-1 px-2 py-1 border rounded">
+                        <span class="text-sm">%</span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <label class="w-8 text-sm font-medium">C:</label>
+                        <input type="number" id="freq-c" min="0" max="100" value="20" class="flex-1 px-2 py-1 border rounded">
+                        <span class="text-sm">%</span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <label class="w-8 text-sm font-medium">D:</label>
+                        <input type="number" id="freq-d" min="0" max="100" value="15" class="flex-1 px-2 py-1 border rounded">
+                        <span class="text-sm">%</span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <label class="w-8 text-sm font-medium">E:</label>
+                        <input type="number" id="freq-e" min="0" max="100" value="10" class="flex-1 px-2 py-1 border rounded">
+                        <span class="text-sm">%</span>
+                      </div>
+                    </div>
+                    <div class="space-y-3">
+                      <div class="bg-gray-100 p-3 rounded">
+                        <div class="text-sm font-medium">合計: <span id="freq-total" class="text-blue-600">100</span>%</div>
+                      </div>
+                      <button id="build-huffman-tree" class="btn-primary w-full">ハフマン木を構築</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="space-y-4">
+                  <h4 class="text-lg font-semibold text-gray-800">生成された符号表</h4>
+                  <div class="bg-white border rounded-lg overflow-hidden">
+                    <table id="code-table" class="w-full">
+                      <thead class="bg-gray-50">
+                        <tr>
+                          <th class="px-3 py-2 text-left text-sm font-medium text-gray-700">文字</th>
+                          <th class="px-3 py-2 text-left text-sm font-medium text-gray-700">出現頻度</th>
+                          <th class="px-3 py-2 text-left text-sm font-medium text-gray-700">符号</th>
+                          <th class="px-3 py-2 text-left text-sm font-medium text-gray-700">符号長</th>
+                        </tr>
+                      </thead>
+                      <tbody id="code-table-body">
+                        <tr><td colspan="4" class="px-3 py-4 text-center text-gray-500">ハフマン木を構築してください</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 木構築 -->
+            <div id="hf-tree" class="subsection hidden">
+              <h3 class="text-xl font-semibold text-gray-800 mb-4">ハフマン木構築過程</h3>
+              <div class="space-y-4">
+                <div class="flex flex-wrap gap-2">
+                  <button id="tree-step-back" class="btn-secondary">戻る</button>
+                  <button id="tree-step-forward" class="btn-secondary">次へ</button>
+                  <button id="tree-auto-play" class="btn-primary">自動再生</button>
+                  <button id="tree-reset" class="btn-secondary">リセット</button>
+                </div>
+                <div class="bg-white border rounded-lg p-4 min-h-96">
+                  <svg id="huffman-tree" class="w-full h-96"></svg>
+                </div>
+                <div class="bg-blue-50 p-4 rounded-lg">
+                  <div id="tree-step-text" class="text-blue-800">ハフマン木構築をステップ実行できます</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 符号化練習 -->
+            <div id="hf-encode" class="subsection hidden">
+              <h3 class="text-xl font-semibold text-gray-800 mb-4">符号化・復号化練習</h3>
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="space-y-4">
+                  <div class="space-y-2">
+                    <label for="text-input" class="block text-sm font-medium text-gray-700">文字列を入力:</label>
+                    <input type="text" id="text-input" placeholder="例：ABCDE" class="w-full px-3 py-2 border rounded-md">
+                    <button id="encode-text" class="btn-primary">符号化</button>
+                  </div>
+                  
+                  <div class="bg-gray-50 p-4 rounded-lg space-y-2">
+                    <h5 class="font-semibold text-gray-800">符号化結果</h5>
+                    <div id="encoded-text" class="font-mono text-sm bg-white p-2 rounded border"></div>
+                    <div class="text-xs text-gray-600 space-y-1">
+                      <div>元サイズ: <span id="original-size">0</span>ビット</div>
+                      <div>符号化後: <span id="encoded-size">0</span>ビット</div>
+                      <div>削減率: <span id="encode-ratio">0</span>%</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="space-y-4">
+                  <h5 class="font-semibold text-gray-800">復号化確認</h5>
+                  <div id="decoded-text" class="bg-green-50 p-4 rounded-lg font-mono"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 比較・練習セクション -->
+        <section id="comparison" class="content-section hidden">
+          <div class="card mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">圧縮方式比較・総合練習</h2>
+            
+            <div class="space-y-6">
+              <h3 class="text-xl font-semibold text-gray-800">同一データでの比較</h3>
+              <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p class="text-sm text-yellow-800"><strong>注意:</strong> 半角英数字（A-Z, a-z, 0-9）のみ入力可能です。</p>
+                <p class="text-sm text-yellow-800">文字種数に応じて最適なビット数で計算します。</p>
+              </div>
+              
+              <div class="space-y-4">
+                <textarea id="comparison-text" placeholder="例: AAABBBCCC または ABC123" 
+                         class="w-full px-3 py-2 border rounded-md h-24 resize-none"></textarea>
+                <button id="compare-methods" class="btn-primary">比較実行</button>
+              </div>
+              
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-gray-50 p-4 rounded-lg">
+                  <h4 class="font-semibold text-gray-800 mb-2">非圧縮</h4>
+                  <div class="space-y-1 text-sm">
+                    <div>サイズ: <span id="uncompressed-size" class="font-mono">0</span>ビット</div>
+                    <div id="bit-calculation" class="text-xs text-gray-600"></div>
+                  </div>
+                </div>
+                <div class="bg-blue-50 p-4 rounded-lg">
+                  <h4 class="font-semibold text-blue-800 mb-2">ランレングス符号化</h4>
+                  <div class="space-y-1 text-sm">
+                    <div>サイズ: <span id="rl-comp-size" class="font-mono">0</span>ビット</div>
+                    <div>削減率: <span id="rl-comp-ratio" class="font-mono">0</span>%</div>
+                  </div>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg">
+                  <h4 class="font-semibold text-green-800 mb-2">ハフマン符号化</h4>
+                  <div class="space-y-1 text-sm">
+                    <div>サイズ: <span id="hf-comp-size" class="font-mono">0</span>ビット</div>
+                    <div>削減率: <span id="hf-comp-ratio" class="font-mono">0</span>%</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     `
 
@@ -302,14 +473,25 @@ export class CompressionTool {
         const x = col * cellSize
         const y = row * cellSize
         
-        // セルの色を設定
-        ctx.fillStyle = data[row][col] === 0 ? '#3b82f6' : '#ef4444' // blue : red
+        // セルの背景色（元サイトと同じ色）
+        ctx.fillStyle = data[row][col] === 0 ? '#e3f2fd' : '#1976d2'
         ctx.fillRect(x, y, cellSize, cellSize)
         
         // 境界線
-        ctx.strokeStyle = '#374151'
-        ctx.lineWidth = 1
+        ctx.strokeStyle = '#666'
+        ctx.lineWidth = 2
         ctx.strokeRect(x, y, cellSize, cellSize)
+        
+        // セルの文字（AまたはB）
+        ctx.fillStyle = data[row][col] === 0 ? '#333' : '#fff'
+        ctx.font = `${Math.max(16, cellSize * 0.4)}px Arial`
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(
+          data[row][col] === 0 ? 'A' : 'B',
+          x + cellSize / 2,
+          y + cellSize / 2
+        )
       }
     }
   }
@@ -357,60 +539,94 @@ export class CompressionTool {
   updateRunLengthEncoding() {
     const originalBits = this.gridData.flat().join('')
     const compressedData = this.runLengthEncode(this.gridData)
-    const compressedBits = compressedData.encoded
-    const compressionRatio = ((64 - compressedBits.length) / 64 * 100).toFixed(1)
+    
+    // 元サイトと同じ圧縮率計算（圧縮後サイズ / 元サイズ × 100）
+    const originalSize = 64
+    const compressedSize = compressedData.totalBits
+    const compressionRatio = (compressedSize / originalSize * 100).toFixed(1)
+    const reductionRatio = ((originalSize - compressedSize) / originalSize * 100).toFixed(1)
     
     // 表示を更新
     document.getElementById('original-bits').textContent = originalBits
-    document.getElementById('compressed-bits').textContent = compressedBits
-    document.getElementById('compressed-size').textContent = `${compressedBits.length}ビット`
-    document.getElementById('ratio-value').textContent = `${compressionRatio}%`
-    document.getElementById('first-bit').textContent = this.gridData[0][0]
+    document.getElementById('compressed-bits').textContent = compressedData.encoding
+    document.getElementById('compressed-size').textContent = `${compressedSize}ビット`
+    document.getElementById('ratio-value').textContent = `${reductionRatio}%`
+    document.getElementById('first-bit').textContent = this.gridData[0][0] === 0 ? 'A (0)' : 'B (1)'
   }
 
   runLengthEncode(data) {
-    let encoded = ''
+    let totalBits = 0
+    let allEncodings = []
     
     for (let row = 0; row < 8; row++) {
-      const rowData = data[row]
-      let current = rowData[0]
-      let count = 1
-      let rowEncoded = current.toString() // 最初のビット
-      
-      for (let col = 1; col < 8; col++) {
-        if (rowData[col] === current) {
-          count++
+      const rowResult = this.encodeRow(data[row])
+      totalBits += rowResult.bits
+      allEncodings.push(rowResult.encoding)
+    }
+    
+    return {
+      totalBits,
+      encoding: allEncodings.join(' | '),
+      details: allEncodings
+    }
+  }
+
+  encodeRow(rowData) {
+    const encodingParts = []
+    let totalBits = 1 // 最初のビット（行の開始文字）
+    let count = 1
+    let currentValue = rowData[0]
+    
+    // 最初のビット: A=0, B=1
+    const firstBit = currentValue.toString()
+    
+    for (let i = 1; i < rowData.length; i++) {
+      if (rowData[i] === currentValue && count < 8) { // 最大8連続（3ビットで0-7を表現、count-1）
+        count++
+      } else {
+        // 個数-1を記録（範囲0-7）
+        const countMinus1 = count - 1
+        encodingParts.push(countMinus1.toString(2).padStart(3, '0'))
+        totalBits += 3
+        
+        if (rowData[i] !== currentValue) {
+          // 文字が変わった
+          currentValue = rowData[i]
+          count = 1
         } else {
-          // 続く個数-1を3ビットで表現
-          rowEncoded += (count - 1).toString(2).padStart(3, '0')
-          current = rowData[col]
+          // 9個目以降は新しいブロック開始
           count = 1
         }
       }
-      
-      // 最後の連続も処理
-      rowEncoded += (count - 1).toString(2).padStart(3, '0')
-      encoded += rowEncoded
     }
     
-    return { encoded }
+    // 最後の個数
+    const countMinus1 = count - 1
+    encodingParts.push(countMinus1.toString(2).padStart(3, '0'))
+    totalBits += 3
+    
+    return {
+      bits: totalBits, // 1ビット（最初の文字） + 3ビット × ランの数
+      encoding: `${firstBit} ${encodingParts.join(' ')}`,
+      firstBit: firstBit
+    }
   }
 
   updatePracticeResults() {
     const compressedData = this.runLengthEncode(this.practiceGridData)
     const originalSize = 64
-    const compressedSize = compressedData.encoded.length
-    const ratio = ((originalSize - compressedSize) / originalSize * 100).toFixed(1)
+    const compressedSize = compressedData.totalBits
+    const reductionRatio = ((originalSize - compressedSize) / originalSize * 100).toFixed(1)
     
     document.getElementById('practice-original').textContent = `${originalSize}ビット`
     document.getElementById('practice-compressed').textContent = `${compressedSize}ビット`
-    document.getElementById('practice-ratio').textContent = `${ratio}%`
+    document.getElementById('practice-ratio').textContent = `${reductionRatio}%`
     
     // 評価
     let evaluation = ''
-    if (ratio > 50) evaluation = '優秀！'
-    else if (ratio > 25) evaluation = '良好'
-    else if (ratio > 0) evaluation = 'まずまず'
+    if (reductionRatio > 50) evaluation = '優秀！'
+    else if (reductionRatio > 25) evaluation = '良好'
+    else if (reductionRatio > 0) evaluation = 'まずまず'
     else evaluation = '圧縮効果なし'
     
     document.getElementById('practice-evaluation').textContent = evaluation
