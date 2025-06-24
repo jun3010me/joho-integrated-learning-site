@@ -734,6 +734,7 @@ export class CompressionTool {
   }
 
   switchSubsection(section, subsection) {
+    console.log(`switchSubsection called: section=${section}, subsection=${subsection}`)
     this.currentSubsection[section] = subsection
     
     // サブセクションボタンの状態更新
@@ -747,12 +748,38 @@ export class CompressionTool {
     // サブセクションの表示切り替え
     const sectionElement = document.getElementById(section)
     if (sectionElement) {
+      // セクション名を正しいプレフィックスに変換
+      let prefix
+      if (section === 'run-length') {
+        prefix = 'rl'
+      } else if (section === 'huffman') {
+        prefix = 'hf'
+      } else {
+        prefix = section.split('-')[0]
+      }
+      
+      const targetId = `${prefix}-${subsection}`
+      console.log(`Looking for subsection ID: ${targetId}`)
+      
       sectionElement.querySelectorAll('.subsection').forEach(sub => {
-        const isActive = sub.id === `${section.split('-')[0]}-${subsection}`
-        sub.classList.toggle('active', isActive)
-        sub.classList.toggle('hidden', !isActive)
+        const isActive = sub.id === targetId
+        console.log(`Subsection ${sub.id}: ${isActive ? 'ACTIVE' : 'hidden'}`)
+        
+        if (isActive) {
+          sub.classList.add('active')
+          sub.classList.remove('hidden')
+          sub.style.display = 'block'
+        } else {
+          sub.classList.remove('active')
+          sub.classList.add('hidden')
+          sub.style.display = 'none'
+        }
       })
+    } else {
+      console.error(`Section element not found: ${section}`)
     }
+    
+    console.log(`switchSubsection completed for ${section}-${subsection}`)
   }
 
 
