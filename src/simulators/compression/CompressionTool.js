@@ -691,15 +691,15 @@ export class CompressionTool {
     canvas.dataset.eventsSetup = 'true'
   }
 
-  handleCanvasClick(e, canvas, type) {
-    if (!e || !canvas) {
+  handleCanvasClick(event, canvas, type) {
+    if (!event || !canvas) {
       console.warn('Invalid parameters in handleCanvasClick')
       return
     }
     
     const rect = canvas.getBoundingClientRect()
-    const x = (e.clientX !== undefined ? e.clientX : e.pageX) - rect.left
-    const y = (e.clientY !== undefined ? e.clientY : e.pageY) - rect.top
+    const x = (event.clientX !== undefined ? event.clientX : event.pageX) - rect.left
+    const y = (event.clientY !== undefined ? event.clientY : event.pageY) - rect.top
     const cellSize = 40
     
     const col = Math.floor(x / cellSize)
