@@ -357,12 +357,36 @@ export class CompressionTool {
     this.setupEventListeners()
     this.initializeSVG()
     
-    // DOMが完全に構築された後にキャンバスと描画を実行
+    // 即座に初期化を試行し、失敗したら再試行
+    this.initializeCanvas()
+    
+    // フォールバック：少し遅延して再実行
     setTimeout(() => {
-      this.setupCanvas()
-      this.updateDisplay()
+      this.initializeCanvas()
+    }, 100)
+    
+    // 最終フォールバック：長い遅延で再実行
+    setTimeout(() => {
+      this.initializeCanvas()
+    }, 500)
+  }
+
+  // キャンバス初期化メソッド
+  initializeCanvas() {
+    console.log('initializeCanvas called')
+    const canvas = document.getElementById('pixel-grid')
+    
+    if (canvas) {
+      console.log('Canvas found, setting up and drawing')
+      this.setupCanvasElement(canvas, 'main')
+      this.drawGrid(canvas, this.gridData)
+      this.updateRunLengthEncoding()
       this.isInitialized = true
-    }, 200)
+      return true
+    } else {
+      console.warn('Canvas not found in initializeCanvas')
+      return false
+    }
   }
 
   // 外部から呼び出し可能な再初期化メソッド
@@ -562,8 +586,23 @@ export class CompressionTool {
 
   drawGrid(canvas, data) {
     console.log('Drawing grid with data:', data)
+    
+    if (!canvas) {
+      console.error('Canvas is null in drawGrid')
+      return
+    }
+    
     const ctx = canvas.getContext('2d')
+    if (!ctx) {
+      console.error('Could not get 2d context from canvas')
+      return
+    }
+    
     const cellSize = 40
+    
+    // キャンバスサイズを明示的に設定
+    canvas.width = 320
+    canvas.height = 320
     
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     

@@ -240,10 +240,18 @@ export class App {
     this.currentSimulator = this.simulators.compression
     this.simulators.compression.render(document.getElementById('main-content'))
     
-    // レンダリング後に初期表示を強制実行
+    // 複数のタイミングで初期表示を強制実行
     setTimeout(() => {
       this.simulators.compression.show()
-    }, 100)
+    }, 50)
+    
+    setTimeout(() => {
+      this.simulators.compression.forceRefresh()
+    }, 200)
+    
+    setTimeout(() => {
+      this.simulators.compression.forceRefresh()
+    }, 1000)
   }
 
   showLogicLearning() {
