@@ -2,8 +2,13 @@ export class CompressionTool {
   constructor() {
     this.currentSection = 'run-length'
     this.currentSubsection = { 'run-length': 'basic', 'huffman': 'basic' }
+    
+    // 初期パターンでグリッドを初期化（全てA）
     this.gridData = Array(8).fill().map(() => Array(8).fill(0)) // 0=A, 1=B
     this.practiceGridData = Array(8).fill().map(() => Array(8).fill(0))
+    
+    console.log('Initial grid data:', this.gridData)
+    
     this.huffmanFrequencies = { A: 30, B: 25, C: 20, D: 15, E: 10 }
     this.huffmanCodes = {}
     this.huffmanTree = null
@@ -351,7 +356,11 @@ export class CompressionTool {
     this.setupEventListeners()
     this.setupCanvas()
     this.initializeSVG()
-    this.updateDisplay()
+    
+    // DOMが完全に構築された後に描画を実行
+    setTimeout(() => {
+      this.updateDisplay()
+    }, 100)
   }
 
   setupEventListeners() {
@@ -508,6 +517,7 @@ export class CompressionTool {
   }
 
   drawGrid(canvas, data) {
+    console.log('Drawing grid with data:', data)
     const ctx = canvas.getContext('2d')
     const cellSize = 40
     
@@ -709,6 +719,17 @@ export class CompressionTool {
   }
 
   updateDisplay() {
+    // 初期グリッドを描画
+    const canvas = document.getElementById('pixel-grid')
+    if (canvas) {
+      this.drawGrid(canvas, this.gridData)
+    }
+    
+    const practiceCanvas = document.getElementById('practice-grid')
+    if (practiceCanvas) {
+      this.drawGrid(practiceCanvas, this.practiceGridData)
+    }
+    
     this.updateRunLengthEncoding()
   }
 
