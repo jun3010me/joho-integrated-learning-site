@@ -9,14 +9,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "jquery": "^3.7.1"
+    "jquery": "^3.7.1",
+    "tailwindcss": "^3.4.14"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.1.10",
     "@tailwindcss/typography": "^0.5.16",
     "autoprefixer": "^10.4.21",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.10",
+    "postcss": "^8.4.48",
     "vite": "^6.3.5"
   },
   "description": "高校情報Ⅰの学習に最適化された統合シミュレータサイト。数値変換、色彩理論、データ圧縮、論理回路を実践的に学習できます。",

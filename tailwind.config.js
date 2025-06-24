@@ -1,5 +1,3 @@
-import { content, theme } from 'tailwindcss/defaultConfig'
-
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -7,7 +5,6 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx,html}",
   ],
   theme: {
-    ...theme,
     extend: {
       colors: {
         primary: {
