@@ -148,8 +148,28 @@ export class BinarySimulator {
   }
 
   setupEventListeners() {
+    // タッチイベント改善ヘルパー関数
+    const addSliderTouchSupport = (element) => {
+      // タッチ開始時にスクロール防止
+      element.addEventListener('touchstart', (e) => {
+        e.stopPropagation()
+      }, { passive: false })
+      
+      // タッチ移動時にページスクロール防止
+      element.addEventListener('touchmove', (e) => {
+        e.stopPropagation()
+      }, { passive: false })
+      
+      // タッチ終了時の処理
+      element.addEventListener('touchend', (e) => {
+        e.stopPropagation()
+      }, { passive: false })
+    }
+
     // ビット数調整
-    document.getElementById('bit-slider').addEventListener('input', (e) => {
+    const bitSlider = document.getElementById('bit-slider')
+    addSliderTouchSupport(bitSlider)
+    bitSlider.addEventListener('input', (e) => {
       this.bitCount = parseInt(e.target.value)
       this.updateBitCount()
     })
@@ -162,7 +182,9 @@ export class BinarySimulator {
     })
 
     // 数値スライダー
-    document.getElementById('value-slider').addEventListener('input', (e) => {
+    const valueSlider = document.getElementById('value-slider')
+    addSliderTouchSupport(valueSlider)
+    valueSlider.addEventListener('input', (e) => {
       this.currentValue = parseInt(e.target.value)
       this.updateDisplay()
     })
@@ -173,7 +195,9 @@ export class BinarySimulator {
     document.getElementById('reset-btn').addEventListener('click', () => this.reset())
 
     // アニメーション制御
-    document.getElementById('speed-slider').addEventListener('input', (e) => {
+    const speedSlider = document.getElementById('speed-slider')
+    addSliderTouchSupport(speedSlider)
+    speedSlider.addEventListener('input', (e) => {
       this.animationSpeed = parseInt(e.target.value)
       this.updateSpeedDisplay()
     })
