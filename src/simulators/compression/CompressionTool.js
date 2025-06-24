@@ -488,26 +488,26 @@ export class CompressionTool {
     // イベントリスナー設定
     this.setupCanvasElement(canvas, 'main')
     
-    // 強制描画 - テストパターンで確実に何かを表示
+    // 強制描画 - クリアパターンで表示
     console.log('About to draw grid with data:', this.gridData)
     
-    // テスト用に確実に見えるパターンを設定
-    const testPattern = [
-      [1,0,1,0,1,0,1,0],
-      [0,1,0,1,0,1,0,1],
-      [1,0,1,0,1,0,1,0],
-      [0,1,0,1,0,1,0,1],
-      [1,0,1,0,1,0,1,0],
-      [0,1,0,1,0,1,0,1],
-      [1,0,1,0,1,0,1,0],
-      [0,1,0,1,0,1,0,1]
+    // デフォルトのクリアパターン（全てA）
+    const clearPattern = [
+      [0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0]
     ]
     
-    console.log('Drawing with test checkerboard pattern for visibility')
-    this.drawGrid(canvas, testPattern)
+    console.log('Drawing with clear pattern (all A)')
+    this.drawGrid(canvas, clearPattern)
     
     // 実際のデータも保存
-    this.gridData = testPattern
+    this.gridData = clearPattern
     
     // 練習用キャンバスも設定
     const practiceCanvas = document.getElementById('practice-grid')
