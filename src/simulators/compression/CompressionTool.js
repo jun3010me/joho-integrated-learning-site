@@ -174,6 +174,7 @@ export class CompressionTool {
               <button class="section-btn active" data-subsection="basic">基本概念</button>
               <button class="section-btn" data-subsection="tree">木構築</button>
               <button class="section-btn" data-subsection="encode">符号化練習</button>
+              <button class="section-btn" data-subsection="problems">問題</button>
             </div>
 
             <!-- 基本概念 -->
@@ -288,6 +289,15 @@ export class CompressionTool {
                 </div>
               </div>
             </div>
+
+            <!-- 問題セクション -->
+            <div id="hf-problems" class="subsection hidden">
+              <h3 class="text-xl font-semibold text-gray-800 mb-4">練習問題</h3>
+              <div class="space-y-4">
+                <button id="generate-hf-problem" class="btn-primary">新しい問題を生成</button>
+                <div id="hf-problem-display" class="mt-4"></div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -340,6 +350,7 @@ export class CompressionTool {
 
     this.setupEventListeners()
     this.setupCanvas()
+    this.initializeSVG()
     this.updateDisplay()
   }
 
@@ -369,6 +380,36 @@ export class CompressionTool {
 
     // 問題生成
     document.getElementById('generate-rl-problem')?.addEventListener('click', () => this.generateRunLengthProblem())
+    document.getElementById('generate-hf-problem')?.addEventListener('click', () => this.generateHuffmanProblem())
+
+    // ハフマン符号化
+    document.getElementById('build-huffman-tree')?.addEventListener('click', () => this.buildHuffmanTree())
+    
+    // 出現頻度入力
+    ['a', 'b', 'c', 'd', 'e'].forEach(char => {
+      const input = document.getElementById(`freq-${char}`)
+      if (input) {
+        input.addEventListener('input', () => this.updateFrequencyTotal())
+      }
+    })
+
+    // 符号化練習
+    document.getElementById('encode-text')?.addEventListener('click', () => this.encodeText())
+
+    // 木構築コントロール
+    document.getElementById('tree-step-back')?.addEventListener('click', () => this.treeStepBack())
+    document.getElementById('tree-step-forward')?.addEventListener('click', () => this.treeStepForward())
+    document.getElementById('tree-auto-play')?.addEventListener('click', () => this.treeAutoPlay())
+    document.getElementById('tree-reset')?.addEventListener('click', () => this.treeReset())
+
+    // 比較ツール
+    document.getElementById('compare-methods')?.addEventListener('click', () => this.compareMethods())
+    
+    // 比較テキストのリアルタイムバリデーション
+    const comparisonText = document.getElementById('comparison-text')
+    if (comparisonText) {
+      comparisonText.addEventListener('input', (e) => this.validateComparisonInput(e))
+    }
   }
 
   switchSection(section) {
@@ -376,8 +417,10 @@ export class CompressionTool {
     
     // ナビゲーションボタンの状態更新
     document.querySelectorAll('.nav-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.section === section)
-      btn.className = btn.dataset.section === section ? 'nav-btn btn-primary' : 'nav-btn btn-secondary'
+      btn.classList.remove('active')
+      if (btn.dataset.section === section) {
+        btn.classList.add('active')
+      }
     })
 
     // セクションの表示切り替え
@@ -392,8 +435,10 @@ export class CompressionTool {
     
     // サブセクションボタンの状態更新
     document.querySelectorAll('.section-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.subsection === subsection)
-      btn.className = btn.dataset.subsection === subsection ? 'section-btn btn-primary' : 'section-btn btn-secondary'
+      btn.classList.remove('active')
+      if (btn.dataset.subsection === subsection) {
+        btn.classList.add('active')
+      }
     })
 
     // サブセクションの表示切り替え
@@ -653,8 +698,636 @@ export class CompressionTool {
     }
   }
 
+  initializeSVG() {
+    const svg = document.getElementById('huffman-tree')
+    if (svg) {
+      svg.setAttribute('width', '800')
+      svg.setAttribute('height', '400')
+      svg.setAttribute('viewBox', '0 0 800 400')
+      svg.style.maxWidth = '100%'
+      svg.style.height = 'auto'
+    }
+  }
+
   updateDisplay() {
     this.updateRunLengthEncoding()
+  }
+
+  // ハフマン符号化関連メソッド
+  updateFrequencyTotal() {
+    const frequencies = ['a', 'b', 'c', 'd', 'e']
+    const total = frequencies.reduce((sum, char) => {
+      const input = document.getElementById(`freq-${char}`)
+      return sum + (input ? parseInt(input.value) || 0 : 0)
+    }, 0)
+    
+    document.getElementById('freq-total').textContent = total
+    
+    // 合計が100でない場合は警告表示
+    const totalElement = document.getElementById('freq-total')
+    if (total === 100) {
+      totalElement.className = 'text-blue-600'
+    } else {
+      totalElement.className = 'text-red-600'
+    }
+  }
+
+  buildHuffmanTree() {
+    // 頻度データを収集
+    const frequencies = {}
+    let totalFreq = 0
+    
+    ['a', 'b', 'c', 'd', 'e'].forEach(char => {
+      const input = document.getElementById(`freq-${char}`)
+      const value = input ? parseInt(input.value) || 0 : 0
+      if (value > 0) {
+        frequencies[char.toUpperCase()] = value
+        totalFreq += value
+      }
+    })
+    
+    if (totalFreq !== 100) {
+      alert('出現頻度の合計を100%にしてください')
+      return
+    }
+    
+    if (Object.keys(frequencies).length < 2) {
+      alert('少なくとも2つの文字の頻度を入力してください')
+      return
+    }
+    
+    // ハフマン符号を生成
+    this.huffmanCodes = this.generateHuffmanCodes(frequencies)
+    this.generateTreeSteps(frequencies)
+    this.updateCodeTable()
+    
+    // 木構築完了を表示
+    if (this.treeSteps.length > 0) {
+      this.currentTreeStep = this.treeSteps.length - 1
+      this.updateTreeVisualization()
+      alert('ハフマン木が構築されました！木構築タブで過程を確認できます。')
+    }
+  }
+
+  generateHuffmanCodes(frequencies) {
+    // 優先度付きキュー（ソート済み配列）として初期化
+    const nodes = Object.entries(frequencies)
+      .filter(([char, freq]) => freq > 0)
+      .map(([char, freq]) => ({ char, freq, left: null, right: null }))
+      .sort((a, b) => a.freq - b.freq)
+    
+    // 単一文字の場合の特別処理
+    if (nodes.length === 1) {
+      this.huffmanTree = nodes[0]
+      return { [nodes[0].char]: '0' }
+    }
+    
+    // ボトムアップで木を構築
+    while (nodes.length > 1) {
+      const left = nodes.shift()   // 最小頻度
+      const right = nodes.shift()  // 2番目の最小頻度
+      
+      const merged = {
+        char: null,
+        freq: left.freq + right.freq,
+        left,
+        right
+      }
+      
+      // マージしたノードを正しい位置に挿入してソート順を維持
+      let inserted = false
+      for (let i = 0; i < nodes.length; i++) {
+        if (merged.freq <= nodes[i].freq) {
+          nodes.splice(i, 0, merged)
+          inserted = true
+          break
+        }
+      }
+      if (!inserted) {
+        nodes.push(merged)
+      }
+    }
+    
+    this.huffmanTree = nodes[0]
+    return this.generateCodesFromTree()
+  }
+
+  generateCodesFromTree() {
+    if (!this.huffmanTree) return {}
+    
+    const codes = {}
+    
+    const generateCodes = (node, code = '') => {
+      if (node.char !== null) {
+        // 葉ノード - 符号を割り当て
+        codes[node.char] = code || '0' // 単一文字の場合
+      } else {
+        // 内部ノード - 再帰
+        if (node.left) generateCodes(node.left, code + '0')
+        if (node.right) generateCodes(node.right, code + '1')
+      }
+    }
+    
+    generateCodes(this.huffmanTree)
+    return codes
+  }
+
+  generateTreeSteps(frequencies) {
+    this.treeSteps = []
+    this.currentTreeStep = 0
+    
+    // 初期状態
+    let nodes = Object.entries(frequencies)
+      .filter(([char, freq]) => freq > 0)
+      .map(([char, freq]) => ({ char, freq, left: null, right: null }))
+      .sort((a, b) => a.freq - b.freq)
+    
+    this.treeSteps.push({
+      nodes: [...nodes],
+      tree: null,
+      description: '初期状態：文字を頻度順にソート'
+    })
+    
+    // 各マージステップ
+    while (nodes.length > 1) {
+      const left = nodes.shift()
+      const right = nodes.shift()
+      const merged = {
+        char: null,
+        freq: left.freq + right.freq,
+        left: this.deepCopyNode(left),
+        right: this.deepCopyNode(right)
+      }
+      
+      // マージしたノードを挿入
+      let inserted = false
+      for (let i = 0; i < nodes.length; i++) {
+        if (merged.freq <= nodes[i].freq) {
+          nodes.splice(i, 0, merged)
+          inserted = true
+          break
+        }
+      }
+      if (!inserted) {
+        nodes.push(merged)
+      }
+      
+      this.treeSteps.push({
+        nodes: [...nodes],
+        tree: nodes.length === 1 ? this.deepCopyNode(nodes[0]) : null,
+        merged: { left: left.char || `(${left.freq})`, right: right.char || `(${right.freq})`, freq: merged.freq },
+        description: `マージ: ${left.char || `(${left.freq})`}(${left.freq}) + ${right.char || `(${right.freq})`}(${right.freq}) → (${merged.freq})`
+      })
+    }
+  }
+
+  deepCopyNode(node) {
+    if (!node) return null
+    return {
+      char: node.char,
+      freq: node.freq,
+      left: this.deepCopyNode(node.left),
+      right: this.deepCopyNode(node.right)
+    }
+  }
+
+  updateCodeTable() {
+    const tableBody = document.getElementById('code-table-body')
+    if (!tableBody || !this.huffmanCodes) return
+    
+    tableBody.innerHTML = ''
+    
+    Object.entries(this.huffmanCodes)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([char, code]) => {
+        const frequencies = {}
+        ['a', 'b', 'c', 'd', 'e'].forEach(c => {
+          const input = document.getElementById(`freq-${c}`)
+          if (input) frequencies[c.toUpperCase()] = parseInt(input.value) || 0
+        })
+        
+        const row = document.createElement('tr')
+        row.innerHTML = `
+          <td class="px-3 py-2 font-mono font-bold">${char}</td>
+          <td class="px-3 py-2">${frequencies[char] || 0}%</td>
+          <td class="px-3 py-2 font-mono text-blue-600">${code}</td>
+          <td class="px-3 py-2">${code.length}ビット</td>
+        `
+        tableBody.appendChild(row)
+      })
+  }
+
+  // 木構築ステップ制御
+  treeStepBack() {
+    if (this.currentTreeStep > 0) {
+      this.currentTreeStep--
+      this.updateTreeVisualization()
+    }
+  }
+
+  treeStepForward() {
+    if (this.currentTreeStep < this.treeSteps.length - 1) {
+      this.currentTreeStep++
+      this.updateTreeVisualization()
+    }
+  }
+
+  treeAutoPlay() {
+    if (this.treeSteps.length === 0) return
+    
+    let step = 0
+    const interval = setInterval(() => {
+      this.currentTreeStep = step
+      this.updateTreeVisualization()
+      step++
+      
+      if (step >= this.treeSteps.length) {
+        clearInterval(interval)
+      }
+    }, 1500)
+  }
+
+  treeReset() {
+    this.currentTreeStep = 0
+    this.updateTreeVisualization()
+  }
+
+  updateTreeVisualization() {
+    if (this.treeSteps.length === 0) {
+      console.log('No tree steps available')
+      return
+    }
+    
+    const currentStep = this.treeSteps[this.currentTreeStep]
+    const svg = document.getElementById('huffman-tree')
+    const stepText = document.getElementById('tree-step-text')
+    
+    console.log('Current step:', this.currentTreeStep, 'Total steps:', this.treeSteps.length)
+    console.log('Current step data:', currentStep)
+    
+    if (stepText) {
+      stepText.textContent = `ステップ ${this.currentTreeStep + 1}/${this.treeSteps.length}: ${currentStep.description}`
+    }
+    
+    if (svg) {
+      console.log('SVG element found')
+      if (currentStep.tree) {
+        console.log('Drawing tree:', currentStep.tree)
+        this.drawHuffmanTree(svg, currentStep.tree)
+      } else {
+        console.log('No tree in current step')
+        svg.innerHTML = '<text x="400" y="200" text-anchor="middle" font-size="16" fill="#666">ハフマン木構築中...</text>'
+      }
+    } else {
+      console.error('SVG element not found!')
+    }
+  }
+
+  drawHuffmanTree(svg, tree) {
+    console.log('Drawing tree:', tree)
+    svg.innerHTML = ''
+    
+    if (!tree) {
+      console.log('No tree to draw')
+      return
+    }
+    
+    // SVGのサイズを設定
+    svg.setAttribute('width', '800')
+    svg.setAttribute('height', '400')
+    svg.setAttribute('viewBox', '0 0 800 400')
+    const width = 800
+    const height = 400
+    
+    const drawNode = (node, x, y, level, maxLevel) => {
+      const radius = 20
+      const levelHeight = (height - 100) / (maxLevel + 1)
+      const nodeY = 50 + level * levelHeight
+      
+      // ノードを描画
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+      circle.setAttribute('cx', x)
+      circle.setAttribute('cy', nodeY)
+      circle.setAttribute('r', radius)
+      circle.setAttribute('fill', node.char ? '#3b82f6' : '#e5e7eb')
+      circle.setAttribute('stroke', '#374151')
+      circle.setAttribute('stroke-width', '2')
+      svg.appendChild(circle)
+      
+      // ノードラベル
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+      text.setAttribute('x', x)
+      text.setAttribute('y', nodeY + 5)
+      text.setAttribute('text-anchor', 'middle')
+      text.setAttribute('font-size', '12')
+      text.setAttribute('font-weight', 'bold')
+      text.setAttribute('fill', node.char ? 'white' : 'black')
+      text.textContent = node.char || node.freq
+      svg.appendChild(text)
+      
+      // 子ノードを描画
+      if (node.left || node.right) {
+        const childSpacing = width / Math.pow(2, level + 2)
+        
+        if (node.left) {
+          const leftX = x - childSpacing
+          const leftY = 50 + (level + 1) * levelHeight
+          
+          // 線を描画
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+          line.setAttribute('x1', x)
+          line.setAttribute('y1', nodeY + radius)
+          line.setAttribute('x2', leftX)
+          line.setAttribute('y2', leftY - radius)
+          line.setAttribute('stroke', '#374151')
+          line.setAttribute('stroke-width', '2')
+          svg.appendChild(line)
+          
+          // "0"ラベル
+          const label = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+          label.setAttribute('x', (x + leftX) / 2 - 15)
+          label.setAttribute('y', (nodeY + leftY) / 2 - 5)
+          label.setAttribute('font-size', '14')
+          label.setAttribute('font-weight', 'bold')
+          label.setAttribute('fill', '#ef4444')
+          label.textContent = '0'
+          svg.appendChild(label)
+          
+          drawNode(node.left, leftX, leftY, level + 1, maxLevel)
+        }
+        
+        if (node.right) {
+          const rightX = x + childSpacing
+          const rightY = 50 + (level + 1) * levelHeight
+          
+          // 線を描画
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+          line.setAttribute('x1', x)
+          line.setAttribute('y1', nodeY + radius)
+          line.setAttribute('x2', rightX)
+          line.setAttribute('y2', rightY - radius)
+          line.setAttribute('stroke', '#374151')
+          line.setAttribute('stroke-width', '2')
+          svg.appendChild(line)
+          
+          // "1"ラベル
+          const label = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+          label.setAttribute('x', (x + rightX) / 2 + 15)
+          label.setAttribute('y', (nodeY + rightY) / 2 - 5)
+          label.setAttribute('font-size', '14')
+          label.setAttribute('font-weight', 'bold')
+          label.setAttribute('fill', '#22c55e')
+          label.textContent = '1'
+          svg.appendChild(label)
+          
+          drawNode(node.right, rightX, rightY, level + 1, maxLevel)
+        }
+      }
+    }
+    
+    const getMaxLevel = (node, level = 0) => {
+      if (!node.left && !node.right) return level
+      const leftLevel = node.left ? getMaxLevel(node.left, level + 1) : level
+      const rightLevel = node.right ? getMaxLevel(node.right, level + 1) : level
+      return Math.max(leftLevel, rightLevel)
+    }
+    
+    const maxLevel = getMaxLevel(tree)
+    drawNode(tree, width / 2, 50, 0, maxLevel)
+  }
+
+  // テキスト符号化
+  encodeText() {
+    const input = document.getElementById('text-input')
+    const text = input ? input.value.toUpperCase() : ''
+    
+    if (!text || !this.huffmanCodes) {
+      alert('まずハフマン木を構築し、テキストを入力してください')
+      return
+    }
+    
+    // 利用可能な文字をチェック
+    const availableChars = Object.keys(this.huffmanCodes)
+    const invalidChars = [...text].filter(char => !availableChars.includes(char))
+    
+    if (invalidChars.length > 0) {
+      alert(`符号表にない文字が含まれています: ${invalidChars.join(', ')}`)
+      return
+    }
+    
+    // 各文字を符号化
+    let encoded = ''
+    const originalBits = text.length * 8 // 8ビットASCII
+    
+    for (const char of text) {
+      encoded += this.huffmanCodes[char]
+    }
+    
+    const encodedBits = encoded.length
+    const reductionRatio = ((originalBits - encodedBits) / originalBits * 100).toFixed(1)
+    
+    // 結果を表示
+    document.getElementById('encoded-text').textContent = encoded
+    document.getElementById('original-size').textContent = originalBits
+    document.getElementById('encoded-size').textContent = encodedBits
+    document.getElementById('encode-ratio').textContent = reductionRatio
+    
+    // 復号化で確認
+    const decoded = this.decodeHuffman(encoded)
+    document.getElementById('decoded-text').textContent = decoded
+  }
+
+  decodeHuffman(encoded) {
+    if (!this.huffmanTree || !encoded) return ''
+    
+    let decoded = ''
+    let current = this.huffmanTree
+    
+    for (const bit of encoded) {
+      // 葉ノードに到達したら文字を出力してルートにリセット
+      if (current.char !== null) {
+        decoded += current.char
+        current = this.huffmanTree
+      }
+      
+      // ビットに基づいて木をナビゲート
+      current = bit === '0' ? current.left : current.right
+      
+      if (!current) {
+        return 'エラー: 無効な符号'
+      }
+    }
+    
+    // 最終文字を処理
+    if (current.char !== null) {
+      decoded += current.char
+    }
+    
+    return decoded
+  }
+
+  // 比較ツール
+  compareMethods() {
+    const text = document.getElementById('comparison-text')?.value?.trim()
+    
+    if (!text) {
+      alert('比較するテキストを入力してください')
+      return
+    }
+    
+    // 最適ビット計算
+    const { originalSize, bitsPerChar, uniqueChars } = this.calculateOptimalBits(text)
+    
+    // ランレングス符号化サイズ
+    const rlSize = this.calculateRunLengthSize(text)
+    const rlRatio = rlSize >= originalSize ? 0 : ((originalSize - rlSize) / originalSize * 100).toFixed(1)
+    
+    // ハフマン符号化サイズ（頻度ベース）
+    const hfSize = this.calculateHuffmanSize(text)
+    const hfRatio = hfSize >= originalSize ? 0 : ((originalSize - hfSize) / originalSize * 100).toFixed(1)
+    
+    // 結果を表示
+    document.getElementById('uncompressed-size').textContent = originalSize
+    document.getElementById('bit-calculation').textContent = `${text.length}文字 × ${bitsPerChar}ビット/文字`
+    document.getElementById('rl-comp-size').textContent = rlSize
+    document.getElementById('rl-comp-ratio').textContent = rlRatio
+    document.getElementById('hf-comp-size').textContent = hfSize
+    document.getElementById('hf-comp-ratio').textContent = hfRatio
+  }
+
+  calculateOptimalBits(text) {
+    const uniqueChars = [...new Set(text)].sort()
+    const uniqueCount = uniqueChars.length
+    
+    let bitsPerChar
+    if (uniqueCount === 1) {
+      bitsPerChar = 1 // 単一文字でも最低1ビット
+    } else {
+      bitsPerChar = Math.ceil(Math.log2(uniqueCount))
+    }
+    
+    const originalSize = text.length * bitsPerChar
+    return { originalSize, bitsPerChar, uniqueChars }
+  }
+
+  calculateRunLengthSize(text) {
+    // シンプルなランレングス符号化（文字+カウント）
+    let totalBits = 0
+    let i = 0
+    
+    while (i < text.length) {
+      let count = 1
+      while (i + count < text.length && text[i + count] === text[i] && count < 255) {
+        count++
+      }
+      
+      totalBits += 8 + 8 // 文字(8bit) + カウント(8bit)
+      i += count
+    }
+    
+    return totalBits
+  }
+
+  calculateHuffmanSize(text) {
+    const freq = {}
+    for (const char of text) {
+      freq[char] = (freq[char] || 0) + 1
+    }
+    
+    const uniqueCount = Object.keys(freq).length
+    
+    if (uniqueCount === 1) return text.length // 1ビット/文字
+    if (uniqueCount === 2) return text.length // 1ビット/文字
+    
+    // 実際のハフマン符号化サイズを推定
+    const sortedFreq = Object.entries(freq).sort((a, b) => b[1] - a[1])
+    let totalBits = 0
+    
+    // 頻度順に符号長を割り当て（簡易版）
+    for (let i = 0; i < sortedFreq.length; i++) {
+      const [char, count] = sortedFreq[i]
+      let codeBits
+      
+      // 頻度に基づく符号長の推定
+      if (i === 0) codeBits = 1
+      else if (i === 1) codeBits = 2
+      else if (i <= 3) codeBits = 3
+      else codeBits = Math.ceil(Math.log2(uniqueCount))
+      
+      totalBits += count * codeBits
+    }
+    
+    return totalBits
+  }
+
+  validateComparisonInput(e) {
+    // 英数字のみを許可
+    const valid = /^[A-Za-z0-9]*$/
+    const value = e.target.value
+    
+    if (!valid.test(value)) {
+      e.target.value = value.replace(/[^A-Za-z0-9]/g, '')
+    }
+  }
+
+  // 問題生成
+  generateRunLengthProblem() {
+    const patterns = [
+      { data: 'AAABBBCCC', description: '3文字ずつの繰り返し' },
+      { data: 'AAAAABBBB', description: '5文字と4文字の組み合わせ' },
+      { data: 'ABABABAB', description: '交互パターン' },
+      { data: 'AABBCCDD', description: '2文字ずつの繰り返し' },
+      { data: 'AAAABBBBCCCCDDDD', description: '4種類の文字' }
+    ]
+    
+    const pattern = patterns[Math.floor(Math.random() * patterns.length)]
+    const display = document.getElementById('rl-problem-display')
+    
+    if (display) {
+      display.innerHTML = `
+        <div class="bg-blue-50 p-4 rounded-lg">
+          <h4 class="font-semibold mb-2">問題: ${pattern.description}</h4>
+          <p class="mb-3">次のデータをランレングス符号化してください：</p>
+          <div class="font-mono text-lg bg-white p-2 rounded border mb-3">${pattern.data}</div>
+          <p class="text-sm text-gray-600">各文字を8ビット、ランレングス符号化では文字+カウント(8ビット)で計算してください。</p>
+        </div>
+      `
+    }
+  }
+
+  generateHuffmanProblem() {
+    const problems = [
+      {
+        frequencies: { A: 40, B: 30, C: 20, D: 10 },
+        text: '4文字の頻度分析'
+      },
+      {
+        frequencies: { A: 35, B: 25, C: 25, D: 15 },
+        text: '均等に近い分布'
+      },
+      {
+        frequencies: { A: 50, B: 25, C: 15, D: 10 },
+        text: '偏った分布'
+      }
+    ]
+    
+    const problem = problems[Math.floor(Math.random() * problems.length)]
+    const display = document.getElementById('hf-problem-display')
+    
+    if (display) {
+      const freqList = Object.entries(problem.frequencies)
+        .map(([char, freq]) => `${char}: ${freq}%`)
+        .join(', ')
+      
+      display.innerHTML = `
+        <div class="bg-green-50 p-4 rounded-lg">
+          <h4 class="font-semibold mb-2">問題: ${problem.text}</h4>
+          <p class="mb-3">次の頻度分布でハフマン木を構築してください：</p>
+          <div class="font-mono bg-white p-2 rounded border mb-3">${freqList}</div>
+          <p class="text-sm text-gray-600">上の基本概念タブで頻度を入力して、木構築タブで過程を確認してください。</p>
+        </div>
+      `
+    }
   }
 
   cleanup() {
