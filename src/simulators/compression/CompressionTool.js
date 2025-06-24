@@ -19,6 +19,7 @@ export class CompressionTool {
   }
 
   render(container) {
+    console.log('=== CompressionTool render() started ===')
     container.innerHTML = `
       <div class="simulator-container">
         <div class="mb-8">
@@ -354,6 +355,17 @@ export class CompressionTool {
       </div>
     `
 
+    console.log('=== HTML inserted, setting up listeners ===')
+    
+    // DOM状態を確認
+    setTimeout(() => {
+      console.log('=== DOM Check After HTML Insert ===')
+      console.log('pixel-grid exists:', !!document.getElementById('pixel-grid'))
+      console.log('run-length section exists:', !!document.getElementById('run-length'))
+      console.log('run-length section visible:', document.getElementById('run-length')?.style.display !== 'none')
+      console.log('all canvas elements:', document.querySelectorAll('canvas'))
+    }, 0)
+    
     // イベントリスナーとSVG初期化
     this.setupEventListeners()
     this.initializeSVG()
@@ -401,15 +413,24 @@ export class CompressionTool {
   forceInitialDisplay() {
     console.log('forceInitialDisplay called')
     
-    // 初回表示時も同じタイミングで実行（セクション切り替えと同じ50ms遅延）
+    // 即座に試行
+    this.setupCanvasAndDraw()
+    
+    // 複数の遅延で再試行
     setTimeout(() => {
-      console.log('Initial display - setting up canvas')
+      console.log('Initial display - 50ms retry')
       this.setupCanvasAndDraw()
     }, 50)
     
-    // フォールバック用タイマー
-    setTimeout(() => this.setupCanvasAndDraw(), 150)
-    setTimeout(() => this.setupCanvasAndDraw(), 300)
+    setTimeout(() => {
+      console.log('Initial display - 150ms retry')
+      this.setupCanvasAndDraw()
+    }, 150)
+    
+    setTimeout(() => {
+      console.log('Initial display - 300ms retry')
+      this.setupCanvasAndDraw()
+    }, 300)
   }
 
   // キャンバス設定と描画を一括実行
@@ -440,9 +461,26 @@ export class CompressionTool {
     // イベントリスナー設定
     this.setupCanvasElement(canvas, 'main')
     
-    // 強制描画
+    // 強制描画 - テストパターンで確実に何かを表示
     console.log('About to draw grid with data:', this.gridData)
-    this.drawGrid(canvas, this.gridData)
+    
+    // テスト用に確実に見えるパターンを設定
+    const testPattern = [
+      [1,0,1,0,1,0,1,0],
+      [0,1,0,1,0,1,0,1],
+      [1,0,1,0,1,0,1,0],
+      [0,1,0,1,0,1,0,1],
+      [1,0,1,0,1,0,1,0],
+      [0,1,0,1,0,1,0,1],
+      [1,0,1,0,1,0,1,0],
+      [0,1,0,1,0,1,0,1]
+    ]
+    
+    console.log('Drawing with test checkerboard pattern for visibility')
+    this.drawGrid(canvas, testPattern)
+    
+    // 実際のデータも保存
+    this.gridData = testPattern
     
     // 練習用キャンバスも設定
     const practiceCanvas = document.getElementById('practice-grid')
@@ -657,7 +695,12 @@ export class CompressionTool {
   }
 
   drawGrid(canvas, data) {
-    console.log('Drawing grid with data:', data)
+    console.log('=== drawGrid called ===')
+    console.log('Canvas element:', canvas)
+    console.log('Data to draw:', data)
+    console.log('Canvas parent:', canvas?.parentElement)
+    console.log('Canvas display style:', canvas?.style.display)
+    console.log('Canvas computed style:', canvas ? getComputedStyle(canvas).display : 'N/A')
     
     if (!canvas) {
       console.error('Canvas is null in drawGrid')
@@ -675,6 +718,8 @@ export class CompressionTool {
     // キャンバスサイズを明示的に設定
     canvas.width = 320
     canvas.height = 320
+    
+    console.log('Canvas dimensions set to:', canvas.width, 'x', canvas.height)
     
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     
@@ -704,6 +749,9 @@ export class CompressionTool {
         )
       }
     }
+    
+    console.log('=== Grid drawing completed ===')
+    console.log('Total cells drawn: 64')
   }
 
   clearGrid() {
