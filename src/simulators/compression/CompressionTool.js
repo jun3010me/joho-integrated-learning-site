@@ -585,11 +585,10 @@ export class CompressionTool {
     const originalBits = this.gridData.flat().join('')
     const compressedData = this.runLengthEncode(this.gridData)
     
-    // 元サイトと同じ圧縮率計算（圧縮後サイズ / 元サイズ × 100）
+    // 削減率計算（圧縮後サイズ / 元サイズ × 100 として表示）
     const originalSize = 64
     const compressedSize = compressedData.totalBits
-    const compressionRatio = (compressedSize / originalSize * 100).toFixed(1)
-    const reductionRatio = ((originalSize - compressedSize) / originalSize * 100).toFixed(1)
+    const reductionRatio = (compressedSize / originalSize * 100).toFixed(1)
     
     // 表示を更新
     document.getElementById('original-bits').textContent = originalBits
@@ -1124,7 +1123,7 @@ export class CompressionTool {
     }
     
     const encodedBits = encoded.length
-    const reductionRatio = ((originalBits - encodedBits) / originalBits * 100).toFixed(1)
+    const reductionRatio = (encodedBits / originalBits * 100).toFixed(1)
     
     // 結果を表示
     document.getElementById('encoded-text').textContent = encoded
@@ -1180,11 +1179,11 @@ export class CompressionTool {
     
     // ランレングス符号化サイズ
     const rlSize = this.calculateRunLengthSize(text)
-    const rlRatio = rlSize >= originalSize ? 0 : ((originalSize - rlSize) / originalSize * 100).toFixed(1)
+    const rlRatio = (rlSize / originalSize * 100).toFixed(1)
     
     // ハフマン符号化サイズ（頻度ベース）
     const hfSize = this.calculateHuffmanSize(text)
-    const hfRatio = hfSize >= originalSize ? 0 : ((originalSize - hfSize) / originalSize * 100).toFixed(1)
+    const hfRatio = (hfSize / originalSize * 100).toFixed(1)
     
     // 結果を表示
     document.getElementById('uncompressed-size').textContent = originalSize
