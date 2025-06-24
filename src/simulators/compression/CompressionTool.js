@@ -358,45 +358,90 @@ export class CompressionTool {
     this.setupEventListeners()
     this.initializeSVG()
     
+    // 初期セクションを確実に表示
+    this.ensureInitialSectionVisible()
+    
     // 強制的に初期表示を実行
     this.forceInitialDisplay()
+  }
+
+  // 初期セクション表示を確実にする
+  ensureInitialSectionVisible() {
+    console.log('ensureInitialSectionVisible called')
+    
+    // ランレングス符号化セクションを確実に表示
+    const runLengthSection = document.getElementById('run-length')
+    if (runLengthSection) {
+      runLengthSection.classList.add('active')
+      runLengthSection.style.display = 'block'
+      console.log('Run-length section set to visible')
+    }
+    
+    // 他のセクションを非表示
+    const otherSections = ['huffman', 'comparison']
+    otherSections.forEach(sectionId => {
+      const section = document.getElementById(sectionId)
+      if (section) {
+        section.classList.remove('active')
+        section.style.display = 'none'
+      }
+    })
+    
+    // ナビゲーションボタンの状態も確実に設定
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+      btn.classList.remove('active')
+      if (btn.dataset.section === 'run-length') {
+        btn.classList.add('active')
+        console.log('Run-length nav button set to active')
+      }
+    })
   }
 
   // 強制初期表示メソッド
   forceInitialDisplay() {
     console.log('forceInitialDisplay called')
     
-    // requestAnimationFrameを使って次のフレームで実行
-    requestAnimationFrame(() => {
+    // 初回表示時も同じタイミングで実行（セクション切り替えと同じ50ms遅延）
+    setTimeout(() => {
+      console.log('Initial display - setting up canvas')
       this.setupCanvasAndDraw()
-    })
+    }, 50)
     
-    // フォールバック用の複数タイマー
-    setTimeout(() => this.setupCanvasAndDraw(), 10)
-    setTimeout(() => this.setupCanvasAndDraw(), 100)
-    setTimeout(() => this.setupCanvasAndDraw(), 500)
+    // フォールバック用タイマー
+    setTimeout(() => this.setupCanvasAndDraw(), 150)
+    setTimeout(() => this.setupCanvasAndDraw(), 300)
   }
 
   // キャンバス設定と描画を一括実行
   setupCanvasAndDraw() {
     console.log('setupCanvasAndDraw called')
     
-    const canvas = document.getElementById('pixel-grid')
-    if (!canvas) {
-      console.warn('Canvas not found')
+    // ランレングス符号化セクションが表示されているかチェック
+    const runLengthSection = document.getElementById('run-length')
+    if (!runLengthSection || runLengthSection.style.display === 'none') {
+      console.warn('Run-length section not visible, skipping canvas setup')
       return false
     }
     
-    console.log('Canvas found, initializing...')
+    const canvas = document.getElementById('pixel-grid')
+    if (!canvas) {
+      console.warn('Canvas not found, checking DOM...')
+      console.log('Available elements:', document.querySelectorAll('#run-length canvas'))
+      return false
+    }
+    
+    console.log('Canvas found, initializing...', canvas)
     
     // キャンバス設定
     canvas.width = 320
     canvas.height = 320
+    canvas.style.display = 'block'
     
     // イベントリスナー設定
     this.setupCanvasElement(canvas, 'main')
     
     // 強制描画
+    console.log('About to draw grid with data:', this.gridData)
     this.drawGrid(canvas, this.gridData)
     
     // 練習用キャンバスも設定
