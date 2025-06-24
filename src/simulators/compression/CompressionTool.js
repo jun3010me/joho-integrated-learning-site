@@ -7,7 +7,7 @@ export class CompressionTool {
     this.gridData = Array(8).fill().map(() => Array(8).fill(0)) // 0=A, 1=B
     this.practiceGridData = Array(8).fill().map(() => Array(8).fill(0))
     
-    console.log('Initial grid data:', this.gridData)
+    console.log('CompressionTool constructor - Initial grid data:', this.gridData)
     
     this.huffmanFrequencies = { A: 30, B: 25, C: 20, D: 15, E: 10 }
     this.huffmanCodes = {}
@@ -15,6 +15,7 @@ export class CompressionTool {
     this.treeSteps = []
     this.currentTreeStep = 0
     this.lastTouch = null // タッチのデバウンス用
+    this.isInitialized = false
   }
 
   render(container) {
@@ -354,13 +355,36 @@ export class CompressionTool {
     `
 
     this.setupEventListeners()
-    this.setupCanvas()
     this.initializeSVG()
     
-    // DOMが完全に構築された後に描画を実行
+    // DOMが完全に構築された後にキャンバスと描画を実行
     setTimeout(() => {
+      this.setupCanvas()
       this.updateDisplay()
-    }, 100)
+      this.isInitialized = true
+    }, 200)
+  }
+
+  // 外部から呼び出し可能な再初期化メソッド
+  forceRefresh() {
+    console.log('forceRefresh called')
+    if (!this.isInitialized) {
+      setTimeout(() => {
+        this.setupCanvas()
+        this.updateDisplay()
+        this.isInitialized = true
+      }, 100)
+    } else {
+      this.updateDisplay()
+    }
+  }
+
+  // 外部から呼び出し可能な初期表示メソッド  
+  show() {
+    console.log('CompressionTool show() called')
+    setTimeout(() => {
+      this.forceRefresh()
+    }, 50)
   }
 
   setupEventListeners() {
@@ -739,14 +763,20 @@ export class CompressionTool {
   }
 
   updateDisplay() {
-    // 初期グリッドを描画
+    console.log('updateDisplay called')
+    
+    // 初期グリッドを強制描画
     const canvas = document.getElementById('pixel-grid')
     if (canvas) {
+      console.log('Drawing main grid with data:', this.gridData)
       this.drawGrid(canvas, this.gridData)
+    } else {
+      console.warn('pixel-grid canvas not found')
     }
     
     const practiceCanvas = document.getElementById('practice-grid')
     if (practiceCanvas) {
+      console.log('Drawing practice grid')
       this.drawGrid(practiceCanvas, this.practiceGridData)
     }
     

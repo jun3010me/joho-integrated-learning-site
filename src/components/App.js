@@ -239,6 +239,11 @@ export class App {
     }
     this.currentSimulator = this.simulators.compression
     this.simulators.compression.render(document.getElementById('main-content'))
+    
+    // レンダリング後に初期表示を強制実行
+    setTimeout(() => {
+      this.simulators.compression.show()
+    }, 100)
   }
 
   showLogicLearning() {
