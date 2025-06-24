@@ -573,8 +573,8 @@ export class CompressionTool {
     document.getElementById('build-huffman-tree')?.addEventListener('click', () => this.buildHuffmanTree())
     
     // 出現頻度入力
-    ['a', 'b', 'c', 'd', 'e'].forEach(char => {
-      const input = document.getElementById(`freq-${char}`)
+    ['a', 'b', 'c', 'd', 'e'].forEach(character => {
+      const input = document.getElementById(`freq-${character}`)
       if (input) {
         input.addEventListener('input', (event) => {
           if (event) {
