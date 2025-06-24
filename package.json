@@ -1,0 +1,36 @@
+{
+  "name": "joho-integrated-learning-site",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "jquery": "^3.7.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.10",
+    "@tailwindcss/typography": "^0.5.16",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.10",
+    "vite": "^6.3.5"
+  },
+  "description": "高校情報Ⅰの学習に最適化された統合シミュレータサイト。数値変換、色彩理論、データ圧縮、論理回路を実践的に学習できます。",
+  "keywords": [
+    "情報Ⅰ",
+    "高校",
+    "プログラミング",
+    "数値変換",
+    "論理回路",
+    "データ圧縮",
+    "色彩理論",
+    "学習",
+    "シミュレータ"
+  ],
+  "author": "情報Ⅰ統合学習サイト開発チーム",
+  "license": "MIT"
+}
