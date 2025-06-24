@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/joho-integrated-learning-site/',
+  base: '/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
