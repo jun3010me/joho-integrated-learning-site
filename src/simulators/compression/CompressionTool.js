@@ -411,26 +411,50 @@ export class CompressionTool {
 
   // 強制初期表示メソッド
   forceInitialDisplay() {
-    console.log('forceInitialDisplay called')
+    console.log('forceInitialDisplay called - using same logic as section switching')
     
-    // 即座に試行
-    this.setupCanvasAndDraw()
-    
-    // 複数の遅延で再試行
+    // セクション切り替えと全く同じタイミング（50ms）で実行
     setTimeout(() => {
-      console.log('Initial display - 50ms retry')
+      console.log('Initial display - executing section switch logic')
+      // switchSection('run-length')と同じロジックを実行
+      this.executeRunLengthSectionDisplay()
+    }, 50)
+  }
+
+  // ランレングスセクション表示を実行（セクション切り替えと初期表示で共通使用）
+  executeRunLengthSectionDisplay() {
+    console.log('executeRunLengthSectionDisplay called')
+    
+    // セクション表示状態を強制設定
+    const runLengthSection = document.getElementById('run-length')
+    if (runLengthSection) {
+      runLengthSection.classList.add('active')
+      runLengthSection.style.display = 'block'
+      console.log('Run-length section forced visible')
+    }
+    
+    // 他のセクションを非表示
+    const otherSections = ['huffman', 'comparison']
+    otherSections.forEach(sectionId => {
+      const section = document.getElementById(sectionId)
+      if (section) {
+        section.classList.remove('active')
+        section.style.display = 'none'
+      }
+    })
+    
+    // ナビゲーションボタン状態設定
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+      btn.classList.remove('active')
+      if (btn.dataset.section === 'run-length') {
+        btn.classList.add('active')
+      }
+    })
+    
+    // キャンバス描画実行（セクション切り替えと全く同じ50msタイミング）
+    setTimeout(() => {
       this.setupCanvasAndDraw()
     }, 50)
-    
-    setTimeout(() => {
-      console.log('Initial display - 150ms retry')
-      this.setupCanvasAndDraw()
-    }, 150)
-    
-    setTimeout(() => {
-      console.log('Initial display - 300ms retry')
-      this.setupCanvasAndDraw()
-    }, 300)
   }
 
   // キャンバス設定と描画を一括実行
