@@ -21,9 +21,17 @@ export class App {
   }
 
   init() {
+    console.log('🏗️ App.init() 開始 - レイアウト作成中...')
     this.createLayout()
+    console.log('✅ レイアウト作成完了')
+    
+    console.log('🧭 ナビゲーション設定中...')
     this.setupNavigation()
+    console.log('✅ ナビゲーション設定完了')
+    
+    console.log('🏠 ホームページ表示中...')
     this.showHomePage()
+    console.log('✅ App.init() 完了')
   }
 
   createLayout() {
