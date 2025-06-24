@@ -197,7 +197,18 @@ export class ColorSimulator {
       addSliderTouchSupport(slider)
       slider.addEventListener('input', (e) => {
         const component = id.split('-')[0]
-        this.rgbValues[component === 'red' ? 'r' : component === 'green' ? 'g' : 'b'] = parseInt(e.target.value)
+        let value = parseInt(e.target.value)
+        
+        // ビット深度に応じて離散化
+        const levels = Math.pow(2, this.bitDepth)
+        const step = 255 / (levels - 1)
+        const quantized = Math.round(value / step) * step
+        
+        this.rgbValues[component === 'red' ? 'r' : component === 'green' ? 'g' : 'b'] = Math.round(quantized)
+        
+        // スライダー位置を離散化された値に更新
+        e.target.value = Math.round(quantized)
+        
         this.rgbToCmyk()
         this.updateDisplay()
       })
@@ -223,6 +234,17 @@ export class ColorSimulator {
     addSliderTouchSupport(bitDepthSlider)
     bitDepthSlider.addEventListener('input', (e) => {
       this.bitDepth = parseInt(e.target.value)
+      
+      // 現在のRGB値をビット深度に応じて量子化
+      const levels = Math.pow(2, this.bitDepth)
+      const step = 255 / (levels - 1)
+      
+      this.rgbValues.r = Math.round(Math.round(this.rgbValues.r / step) * step)
+      this.rgbValues.g = Math.round(Math.round(this.rgbValues.g / step) * step)
+      this.rgbValues.b = Math.round(Math.round(this.rgbValues.b / step) * step)
+      
+      this.rgbToCmyk()
+      this.updateSliders()
       this.updateDisplay()
     })
 
@@ -272,13 +294,18 @@ export class ColorSimulator {
       cmykControls.classList.add('hidden')
       rgbButton.className = 'btn-primary'
       cmykButton.className = 'btn-secondary'
+      // RGBモードに切り替える際はCMYKからRGBに変換
+      this.cmykToRgb()
     } else {
       rgbControls.classList.add('hidden')
       cmykControls.classList.remove('hidden')
       rgbButton.className = 'btn-secondary'
       cmykButton.className = 'btn-primary'
+      // CMYKモードに切り替える際は現在のRGBからCMYKに変換
+      this.rgbToCmyk()
     }
     this.updateSliders()
+    this.updateDisplay()
   }
 
   createPresetColors() {
@@ -403,18 +430,47 @@ export class ColorSimulator {
     const levels = Math.pow(2, this.bitDepth)
     const { r, g, b } = this.rgbValues
     
-    // 現在の色から黒への階調を作成
-    const gradientStops = []
-    for (let i = 0; i < levels; i++) {
-      const factor = i / (levels - 1)
-      const gradR = Math.round(r * factor)
-      const gradG = Math.round(g * factor)
-      const gradB = Math.round(b * factor)
-      gradientStops.push(`rgb(${gradR}, ${gradG}, ${gradB})`)
+    // ビット深度が低い場合は離散的なセグメント表示
+    if (this.bitDepth <= 4) {
+      // 離散的なセグメント表示
+      gradationBar.innerHTML = ''
+      gradationBar.style.background = 'none'
+      gradationBar.style.display = 'flex'
+      
+      for (let i = 0; i < levels; i++) {
+        const factor = i / (levels - 1)
+        const gradR = Math.round(r * factor)
+        const gradG = Math.round(g * factor)
+        const gradB = Math.round(b * factor)
+        
+        const segment = document.createElement('div')
+        segment.style.backgroundColor = `rgb(${gradR}, ${gradG}, ${gradB})`
+        segment.style.width = `${100 / levels}%`
+        segment.style.height = '100%'
+        segment.style.border = '1px solid #ccc'
+        segment.style.boxSizing = 'border-box'
+        segment.title = `段階 ${i + 1}: rgb(${gradR}, ${gradG}, ${gradB})`
+        
+        gradationBar.appendChild(segment)
+      }
+    } else {
+      // 高いビット深度では滑らかなグラデーション表示
+      gradationBar.innerHTML = ''
+      gradationBar.style.display = 'block'
+      
+      const gradientStops = []
+      for (let i = 0; i < levels; i++) {
+        const factor = i / (levels - 1)
+        const gradR = Math.round(r * factor)
+        const gradG = Math.round(g * factor)
+        const gradB = Math.round(b * factor)
+        gradientStops.push(`rgb(${gradR}, ${gradG}, ${gradB})`)
+      }
+      
+      gradationBar.style.background = `linear-gradient(to right, ${gradientStops.join(', ')})`
     }
     
-    gradationBar.style.background = `linear-gradient(to right, ${gradientStops.join(', ')})`
-    document.getElementById('gradation-info').textContent = `現在の色の階調を${levels}段階で表示しています`
+    document.getElementById('gradation-info').textContent = `現在の色の階調を${levels}段階で表示しています${this.bitDepth <= 4 ? '（離散表示）' : '（滑らか表示）'}`
   }
 
   cleanup() {
