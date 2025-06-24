@@ -367,16 +367,20 @@ export class CompressionTool {
     // メインナビゲーション
     document.querySelectorAll('.nav-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        this.switchSection(e.target.dataset.section)
+        if (e && e.target && e.target.dataset) {
+          this.switchSection(e.target.dataset.section)
+        }
       })
     })
 
     // セクションナビゲーション
     document.querySelectorAll('.section-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        const section = this.currentSection
-        const subsection = e.target.dataset.subsection
-        this.switchSubsection(section, subsection)
+        if (e && e.target && e.target.dataset) {
+          const section = this.currentSection
+          const subsection = e.target.dataset.subsection
+          this.switchSubsection(section, subsection)
+        }
       })
     })
 
@@ -506,9 +510,14 @@ export class CompressionTool {
   }
 
   handleCanvasClick(e, canvas, type) {
+    if (!e || !canvas) {
+      console.warn('Invalid parameters in handleCanvasClick')
+      return
+    }
+    
     const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
+    const x = (e.clientX !== undefined ? e.clientX : e.pageX) - rect.left
+    const y = (e.clientY !== undefined ? e.clientY : e.pageY) - rect.top
     const cellSize = 40
     
     const col = Math.floor(x / cellSize)
