@@ -588,34 +588,78 @@ export class CompressionTool {
     try {
       // グリッドコントロール
       console.log('Setting up grid control listeners...')
-      document.getElementById('clear-grid')?.addEventListener('click', () => this.clearGrid())
-      document.getElementById('pattern-vertical')?.addEventListener('click', () => this.setPattern('vertical'))
-      document.getElementById('pattern-horizontal')?.addEventListener('click', () => this.setPattern('horizontal'))
-      document.getElementById('pattern-checker')?.addEventListener('click', () => this.setPattern('checker'))
-      document.getElementById('pattern-random')?.addEventListener('click', () => this.setPattern('random'))
+      const gridControls = [
+        { id: 'clear-grid', action: () => this.clearGrid() },
+        { id: 'pattern-vertical', action: () => this.setPattern('vertical') },
+        { id: 'pattern-horizontal', action: () => this.setPattern('horizontal') },
+        { id: 'pattern-checker', action: () => this.setPattern('checker') },
+        { id: 'pattern-random', action: () => this.setPattern('random') }
+      ]
+      
+      gridControls.forEach(control => {
+        const element = document.getElementById(control.id)
+        console.log(`${control.id} element:`, element)
+        if (element) {
+          element.addEventListener('click', control.action)
+          console.log(`${control.id} listener added`)
+        } else {
+          console.log(`${control.id} element not found`)
+        }
+      })
       console.log('Grid controls setup complete')
 
       // 問題生成
       console.log('Setting up problem generation listeners...')
-      document.getElementById('generate-rl-problem')?.addEventListener('click', () => this.generateRunLengthProblem())
-      document.getElementById('generate-hf-problem')?.addEventListener('click', () => this.generateHuffmanProblem())
+      const problemElements = [
+        { id: 'generate-rl-problem', action: () => this.generateRunLengthProblem() },
+        { id: 'generate-hf-problem', action: () => this.generateHuffmanProblem() }
+      ]
+      
+      problemElements.forEach(prob => {
+        const element = document.getElementById(prob.id)
+        console.log(`${prob.id} element:`, element)
+        if (element) {
+          element.addEventListener('click', prob.action)
+          console.log(`${prob.id} listener added`)
+        } else {
+          console.log(`${prob.id} element not found`)
+        }
+      })
       console.log('Problem generation setup complete')
 
       // ハフマン符号化
       console.log('Setting up Huffman listeners...')
-      document.getElementById('build-huffman-tree')?.addEventListener('click', () => this.buildHuffmanTree())
+      const huffmanElement = document.getElementById('build-huffman-tree')
+      console.log('build-huffman-tree element:', huffmanElement)
+      if (huffmanElement) {
+        huffmanElement.addEventListener('click', () => this.buildHuffmanTree())
+        console.log('build-huffman-tree listener added')
+      } else {
+        console.log('build-huffman-tree element not found')
+      }
       console.log('Huffman listeners setup complete')
       
       // 出現頻度入力
       console.log('Setting up frequency input listeners...')
-      ['a', 'b', 'c', 'd', 'e'].forEach(character => {
-        const input = document.getElementById(`freq-${character}`)
-        if (input) {
-          input.addEventListener('input', (event) => {
-            if (event) {
-              this.updateFrequencyTotal()
-            }
-          })
+      const frequencyChars = ['a', 'b', 'c', 'd', 'e']
+      frequencyChars.forEach((charCode, index) => {
+        try {
+          console.log(`Setting up freq-${charCode} listener...`)
+          const inputElement = document.getElementById(`freq-${charCode}`)
+          console.log(`freq-${charCode} element:`, inputElement)
+          if (inputElement) {
+            inputElement.addEventListener('input', (inputEvent) => {
+              console.log(`Input event triggered for freq-${charCode}`)
+              if (inputEvent && inputEvent.target) {
+                this.updateFrequencyTotal()
+              }
+            })
+            console.log(`freq-${charCode} listener added successfully`)
+          } else {
+            console.log(`freq-${charCode} element not found`)
+          }
+        } catch (freqError) {
+          console.error(`Error setting up freq-${charCode} listener:`, freqError)
         }
       })
       console.log('Frequency inputs setup complete')
