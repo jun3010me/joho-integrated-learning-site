@@ -398,7 +398,11 @@ export class CompressionTool {
     ['a', 'b', 'c', 'd', 'e'].forEach(char => {
       const input = document.getElementById(`freq-${char}`)
       if (input) {
-        input.addEventListener('input', () => this.updateFrequencyTotal())
+        input.addEventListener('input', (e) => {
+          if (e) {
+            this.updateFrequencyTotal()
+          }
+        })
       }
     })
 
@@ -417,7 +421,11 @@ export class CompressionTool {
     // 比較テキストのリアルタイムバリデーション
     const comparisonText = document.getElementById('comparison-text')
     if (comparisonText) {
-      comparisonText.addEventListener('input', (e) => this.validateComparisonInput(e))
+      comparisonText.addEventListener('input', (e) => {
+        if (e && e.target) {
+          this.validateComparisonInput(e)
+        }
+      })
     }
   }
 
@@ -489,7 +497,10 @@ export class CompressionTool {
     canvas.addEventListener('touchend', (e) => {
       e.preventDefault()
       if (this.lastTouch && Date.now() - this.lastTouch < 300) {
-        this.handleCanvasClick(e.touches[0] || e.changedTouches[0], canvas, type)
+        const touch = e.touches && e.touches[0] || e.changedTouches && e.changedTouches[0]
+        if (touch) {
+          this.handleCanvasClick(touch, canvas, type)
+        }
       }
     })
   }
@@ -1282,6 +1293,11 @@ export class CompressionTool {
 
   validateComparisonInput(e) {
     // 英数字のみを許可
+    if (!e || !e.target) {
+      console.warn('Invalid event object in validateComparisonInput')
+      return
+    }
+    
     const valid = /^[A-Za-z0-9]*$/
     const value = e.target.value
     
