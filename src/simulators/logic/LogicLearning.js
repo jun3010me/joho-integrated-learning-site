@@ -411,12 +411,10 @@ export class LogicLearning {
   }
 
   generateTruthTableAndCircuit() {
-    const variableCount = parseInt(document.getElementById('variable-count')?.value || '2')
     const expression = this.currentExpression.trim()
     
     console.log('🔍 DEBUG: generateTruthTableAndCircuit called')
     console.log('📝 Expression:', expression)
-    console.log('🔢 Variable Count:', variableCount)
     
     if (!expression) {
       alert('論理式をボタンで入力してください')
@@ -424,8 +422,8 @@ export class LogicLearning {
     }
 
     try {
-      // 真理値表を生成
-      const table = this.createTruthTable(variableCount, expression)
+      // 真理値表を生成（UIの変数カウントは無視して、実際の式から抽出）
+      const table = this.createTruthTable(expression)
       this.displayTruthTable(table, table.variables.length)
       
       // 回路図を生成（デバッグ付き）
@@ -447,16 +445,13 @@ export class LogicLearning {
     }
   }
 
-  createTruthTable(variableCount, expression) {
+  createTruthTable(expression) {
     // 実際に使用される変数のみを抽出
-    const actualVariables = this.extractVariables(expression)
+    const variables = this.extractVariables(expression)
     console.log('🔍 DEBUG createTruthTable:')
     console.log('  Expression:', expression)
-    console.log('  Variable count from UI:', variableCount) 
-    console.log('  Actual variables used:', actualVariables)
+    console.log('  Actual variables used:', variables)
     
-    // 実際の変数数を使用
-    const variables = actualVariables
     const rows = Math.pow(2, variables.length)
     const table = []
 
@@ -1139,8 +1134,12 @@ export class LogicLearning {
   }
 
   extractVariables(expression) {
+    console.log('🔍 DEBUG extractVariables called with:', expression)
     const matches = expression.match(/[A-D]/g)
-    return [...new Set(matches || [])].sort()
+    console.log('🔍 Raw matches:', matches)
+    const result = [...new Set(matches || [])].sort()
+    console.log('🔍 Final extracted variables:', result)
+    return result
   }
 
   drawAndGate(ctx, x, y) {
