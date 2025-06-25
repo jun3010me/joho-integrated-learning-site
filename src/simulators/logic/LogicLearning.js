@@ -413,6 +413,8 @@ export class LogicLearning {
   generateTruthTableAndCircuit() {
     const expression = this.currentExpression.trim()
     
+    // 🚨 CACHE BUSTER: 修正版のログ  
+    console.log('🆕 FIXED VERSION: generateTruthTableAndCircuit called - NO MORE VARIABLE D BUG!')
     console.log('🔍 DEBUG: generateTruthTableAndCircuit called')
     console.log('📝 Expression:', expression)
     
@@ -448,9 +450,17 @@ export class LogicLearning {
   createTruthTable(expression) {
     // 実際に使用される変数のみを抽出
     const variables = this.extractVariables(expression)
+    
+    // 🚨 CACHE BUSTER: 修正版のログ
+    console.log('🆕 FIXED VERSION: createTruthTable called')
     console.log('🔍 DEBUG createTruthTable:')
     console.log('  Expression:', expression)
     console.log('  Actual variables used:', variables)
+    console.log('  🚨 Variable count:', variables.length)
+    
+    if (variables.includes('D') && !expression.toUpperCase().includes('D')) {
+      console.error('🚨 BUG DETECTED: Variable D found but not in expression!')
+    }
     
     const rows = Math.pow(2, variables.length)
     const table = []
