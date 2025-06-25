@@ -1559,14 +1559,35 @@ export class CompressionTool {
   drawInitialNodes(svg, nodes, width, height) {
     if (!nodes || !Array.isArray(nodes) || nodes.length === 0) return
     
-    const spacing = Math.min(120, width / (nodes.length + 1))
-    const startX = (width - (nodes.length - 1) * spacing) / 2
-    const y = height - 50  // 下部に配置（変更なし）
-    const radius = 30
+    const nodeRadius = 30
+    const minSpacing = nodeRadius * 3  // ノード直径の1.5倍のスペーシング
+    const padding = nodeRadius + 20  // 左右の余白
+    const availableWidth = width - (padding * 2)
+    
+    // 必要な幅を計算
+    const totalNodeWidth = nodes.length * (nodeRadius * 2)
+    const totalSpacingWidth = (nodes.length - 1) * minSpacing
+    const requiredWidth = totalNodeWidth + totalSpacingWidth
+    
+    let actualSpacing = minSpacing
+    let startX = padding + nodeRadius  // 左余白 + ノード半径
+    
+    // 利用可能幅内に収まるか確認
+    if (requiredWidth <= availableWidth) {
+      // 余裕がある場合は均等配置
+      const extraSpace = availableWidth - requiredWidth
+      actualSpacing = minSpacing + (extraSpace / (nodes.length - 1))
+      startX = padding + nodeRadius
+    } else {
+      // 収まらない場合は最小間隔で中央配置
+      startX = (width - (totalNodeWidth + (nodes.length - 1) * minSpacing)) / 2 + nodeRadius
+    }
+    
+    const y = height - padding  // 下部に配置（パディング考慮）
     
     nodes.forEach((node, index) => {
-      const x = startX + index * spacing
-      this.drawTreeNode(svg, node, x, y, radius, false)
+      const x = startX + index * (nodeRadius * 2 + actualSpacing)
+      this.drawTreeNode(svg, node, x, y, nodeRadius, false)
     })
   }
 
@@ -1730,11 +1751,12 @@ export class CompressionTool {
       if (!node) return
       
       const leafCount = getLeafCount(node)
-      const spacing = Math.max(80 * scale, (rightBound - leftBound) / Math.max(leafCount, 1))
+      const spacing = Math.max(100 * scale, (rightBound - leftBound) / Math.max(leafCount, 1))  // 最小間隔を増加
       
-      // 境界チェック：ノードが表示領域内に収まるか確認
-      const adjustedX = this.ensureWithinBounds(x, nodeRadius, containerWidth - nodeRadius)
-      const adjustedY = this.ensureWithinBounds(y, nodeRadius, containerHeight - nodeRadius)
+      // 境界チェック：ノードが表示領域内に収まるか確認（より保守的に）
+      const safetyMargin = nodeRadius + (30 * scale)  // 安全マージンを増加
+      const adjustedX = this.ensureWithinBounds(x, safetyMargin, containerWidth - safetyMargin)
+      const adjustedY = this.ensureWithinBounds(y, safetyMargin, containerHeight - safetyMargin)
       
       // 現在のノード位置を設定
       positions.set(node, { x: adjustedX, y: adjustedY, level, leafCount })
@@ -1757,8 +1779,8 @@ export class CompressionTool {
       }
     }
     
-    // 初期計算範囲を設定（パディングを考慮）
-    const padding = nodeRadius + 20
+    // 初期計算範囲を設定（より大きなパディングを考慮）
+    const padding = nodeRadius + (40 * scale)  // パディングを増加
     const availableWidth = containerWidth - (padding * 2)
     const startX = containerWidth / 2
     const startY = Math.max(padding, rootY)
@@ -1804,11 +1826,12 @@ export class CompressionTool {
       if (!node) return
       
       const leafCount = getLeafCount(node)
-      const spacing = Math.max(80, (rightBound - leftBound) / Math.max(leafCount, 1))
+      const spacing = Math.max(100, (rightBound - leftBound) / Math.max(leafCount, 1))  // 最小間隔を増加
       
-      // 境界チェック：ノードが表示領域内に収まるか確認
-      const adjustedX = this.ensureWithinBounds(x, nodeRadius, containerWidth - nodeRadius)
-      const adjustedY = this.ensureWithinBounds(y, nodeRadius, containerHeight - nodeRadius)
+      // 境界チェック：ノードが表示領域内に収まるか確認（より保守的に）
+      const safetyMargin = nodeRadius + 30  // 安全マージンを増加
+      const adjustedX = this.ensureWithinBounds(x, safetyMargin, containerWidth - safetyMargin)
+      const adjustedY = this.ensureWithinBounds(y, safetyMargin, containerHeight - safetyMargin)
       
       // 現在のノード位置を設定
       positions.set(node, { x: adjustedX, y: adjustedY, level, leafCount })
@@ -1831,8 +1854,8 @@ export class CompressionTool {
       }
     }
     
-    // 初期計算範囲を設定（パディングを考慮）
-    const padding = nodeRadius + 20
+    // 初期計算範囲を設定（より大きなパディングを考慮）
+    const padding = nodeRadius + 40  // パディングを増加
     const availableWidth = containerWidth - (padding * 2)
     const startX = containerWidth / 2
     const startY = Math.max(padding, rootY)
@@ -1861,14 +1884,14 @@ export class CompressionTool {
     
     const actualWidth = maxX - minX
     const actualHeight = maxY - minY
-    const padding = 20
+    const padding = 50  // パディングを大幅に増加
     
-    // はみ出しチェック
+    // はみ出しチェック（より保守的に）
     if (actualWidth > containerWidth - padding * 2 || actualHeight > containerHeight - padding * 2) {
       // スケール調整が必要
       const scaleX = (containerWidth - padding * 2) / actualWidth
       const scaleY = (containerHeight - padding * 2) / actualHeight
-      const scale = Math.min(scaleX, scaleY, 1) // 縮小のみ
+      const scale = Math.min(scaleX, scaleY, 0.9)  // 最大スケール0.9に制限してより安全に
       
       const centerX = containerWidth / 2
       const centerY = containerHeight / 2
@@ -1880,6 +1903,8 @@ export class CompressionTool {
         pos.x = centerX + (pos.x - originalCenterX) * scale
         pos.y = centerY + (pos.y - originalCenterY) * scale
       })
+      
+      console.log(`Tree scaled to ${(scale * 100).toFixed(1)}% to fit container`)
     }
     
     return positions
