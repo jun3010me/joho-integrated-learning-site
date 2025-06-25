@@ -1093,15 +1093,32 @@ export class CompressionTool {
     const frequencies = {}
     let totalFreq = 0
     
-    ['a', 'b', 'c', 'd', 'e'].forEach(char => {
-      const input = document.getElementById(`freq-${char}`)
-      const value = input ? parseInt(input.value) || 0 : 0
-      console.log(`freq-${char}: ${value}`)
-      if (value > 0) {
-        frequencies[char.toUpperCase()] = value
-        totalFreq += value
+    try {
+      const characters = ['a', 'b', 'c', 'd', 'e']
+      console.log('Characters array:', characters)
+      
+      if (!Array.isArray(characters)) {
+        throw new Error('Characters array is not defined')
       }
-    })
+      
+      characters.forEach(char => {
+        try {
+          const input = document.getElementById(`freq-${char}`)
+          const value = input ? parseInt(input.value) || 0 : 0
+          console.log(`freq-${char}: ${value}`)
+          if (value > 0) {
+            frequencies[char.toUpperCase()] = value
+            totalFreq += value
+          }
+        } catch (charError) {
+          console.error(`Error processing character ${char}:`, charError)
+        }
+      })
+    } catch (error) {
+      console.error('Error in frequency collection:', error)
+      alert('頻度データの収集中にエラーが発生しました。')
+      return
+    }
     
     console.log('Collected frequencies:', frequencies)
     console.log('Total frequency:', totalFreq)
@@ -1150,46 +1167,76 @@ export class CompressionTool {
   }
 
   generateHuffmanCodes(frequencies) {
-    // 優先度付きキュー（ソート済み配列）として初期化
-    const nodes = Object.entries(frequencies)
-      .filter(([char, freq]) => freq > 0)
-      .map(([char, freq]) => ({ char, freq, left: null, right: null }))
-      .sort((a, b) => a.freq - b.freq)
+    console.log('generateHuffmanCodes called with:', frequencies)
     
-    // 単一文字の場合の特別処理
-    if (nodes.length === 1) {
-      this.huffmanTree = nodes[0]
-      return { [nodes[0].char]: '0' }
+    if (!frequencies || typeof frequencies !== 'object') {
+      console.error('Invalid frequencies object:', frequencies)
+      return {}
     }
     
-    // ボトムアップで木を構築
-    while (nodes.length > 1) {
-      const left = nodes.shift()   // 最小頻度
-      const right = nodes.shift()  // 2番目の最小頻度
+    try {
+      // 優先度付きキュー（ソート済み配列）として初期化
+      const entries = Object.entries(frequencies)
+      console.log('Object.entries result:', entries)
       
-      const merged = {
-        char: null,
-        freq: left.freq + right.freq,
-        left,
-        right
+      if (!Array.isArray(entries)) {
+        throw new Error('Object.entries did not return an array')
       }
       
-      // マージしたノードを正しい位置に挿入してソート順を維持
-      let inserted = false
-      for (let i = 0; i < nodes.length; i++) {
-        if (merged.freq <= nodes[i].freq) {
-          nodes.splice(i, 0, merged)
-          inserted = true
-          break
+      const nodes = entries
+        .filter(([char, freq]) => {
+          console.log(`Filtering: ${char} = ${freq}`)
+          return freq > 0
+        })
+        .map(([char, freq]) => {
+          console.log(`Mapping: ${char} = ${freq}`)
+          return { char, freq, left: null, right: null }
+        })
+        .sort((a, b) => {
+          console.log(`Sorting: ${a.char}(${a.freq}) vs ${b.char}(${b.freq})`)
+          return a.freq - b.freq
+        })
+      
+      console.log('Generated nodes:', nodes)
+      
+      // 単一文字の場合の特別処理
+      if (nodes.length === 1) {
+        this.huffmanTree = nodes[0]
+        return { [nodes[0].char]: '0' }
+      }
+      
+      // ボトムアップで木を構築
+      while (nodes.length > 1) {
+        const left = nodes.shift()   // 最小頻度
+        const right = nodes.shift()  // 2番目の最小頻度
+        
+        const merged = {
+          char: null,
+          freq: left.freq + right.freq,
+          left,
+          right
+        }
+        
+        // マージしたノードを正しい位置に挿入してソート順を維持
+        let inserted = false
+        for (let i = 0; i < nodes.length; i++) {
+          if (merged.freq <= nodes[i].freq) {
+            nodes.splice(i, 0, merged)
+            inserted = true
+            break
+          }
+        }
+        if (!inserted) {
+          nodes.push(merged)
         }
       }
-      if (!inserted) {
-        nodes.push(merged)
-      }
+      
+      this.huffmanTree = nodes[0]
+      return this.generateCodesFromTree()
+    } catch (error) {
+      console.error('Error in generateHuffmanCodes:', error)
+      return {}
     }
-    
-    this.huffmanTree = nodes[0]
-    return this.generateCodesFromTree()
   }
 
   generateCodesFromTree() {
@@ -1213,51 +1260,90 @@ export class CompressionTool {
   }
 
   generateTreeSteps(frequencies) {
+    console.log('generateTreeSteps called with:', frequencies)
     this.treeSteps = []
     this.currentTreeStep = 0
     
-    // 初期状態
-    let nodes = Object.entries(frequencies)
-      .filter(([char, freq]) => freq > 0)
-      .map(([char, freq]) => ({ char, freq, left: null, right: null }))
-      .sort((a, b) => a.freq - b.freq)
+    if (!frequencies || typeof frequencies !== 'object') {
+      console.error('Invalid frequencies object in generateTreeSteps:', frequencies)
+      return
+    }
     
-    this.treeSteps.push({
-      nodes: [...nodes],
-      tree: null,
-      description: '初期状態：文字を頻度順にソート'
-    })
-    
-    // 各マージステップ
-    while (nodes.length > 1) {
-      const left = nodes.shift()
-      const right = nodes.shift()
-      const merged = {
-        char: null,
-        freq: left.freq + right.freq,
-        left: this.deepCopyNode(left),
-        right: this.deepCopyNode(right)
+    try {
+      // 初期状態
+      const entries = Object.entries(frequencies)
+      console.log('Tree steps - Object.entries result:', entries)
+      
+      if (!Array.isArray(entries)) {
+        throw new Error('Object.entries did not return an array in generateTreeSteps')
       }
       
-      // マージしたノードを挿入
-      let inserted = false
-      for (let i = 0; i < nodes.length; i++) {
-        if (merged.freq <= nodes[i].freq) {
-          nodes.splice(i, 0, merged)
-          inserted = true
-          break
-        }
-      }
-      if (!inserted) {
-        nodes.push(merged)
+      let nodes = entries
+        .filter(([char, freq]) => {
+          console.log(`Tree steps filtering: ${char} = ${freq}`)
+          return freq > 0
+        })
+        .map(([char, freq]) => {
+          console.log(`Tree steps mapping: ${char} = ${freq}`)
+          return { char, freq, left: null, right: null }
+        })
+        .sort((a, b) => {
+          console.log(`Tree steps sorting: ${a.char}(${a.freq}) vs ${b.char}(${b.freq})`)
+          return a.freq - b.freq
+        })
+      
+      console.log('Tree steps - generated nodes:', nodes)
+      
+      if (!Array.isArray(nodes)) {
+        throw new Error('Failed to generate nodes array')
       }
       
       this.treeSteps.push({
         nodes: [...nodes],
-        tree: nodes.length === 1 ? this.deepCopyNode(nodes[0]) : null,
-        merged: { left: left.char || `(${left.freq})`, right: right.char || `(${right.freq})`, freq: merged.freq },
-        description: `マージ: ${left.char || `(${left.freq})`}(${left.freq}) + ${right.char || `(${right.freq})`}(${right.freq}) → (${merged.freq})`
+        tree: null,
+        description: '初期状態：文字を頻度順にソート'
       })
+      
+      // 各マージステップ
+      while (nodes.length > 1) {
+        const left = nodes.shift()
+        const right = nodes.shift()
+        
+        if (!left || !right) {
+          throw new Error('Failed to get left or right node during merge')
+        }
+        
+        const merged = {
+          char: null,
+          freq: left.freq + right.freq,
+          left: this.deepCopyNode(left),
+          right: this.deepCopyNode(right)
+        }
+        
+        // マージしたノードを挿入
+        let inserted = false
+        for (let i = 0; i < nodes.length; i++) {
+          if (merged.freq <= nodes[i].freq) {
+            nodes.splice(i, 0, merged)
+            inserted = true
+            break
+          }
+        }
+        if (!inserted) {
+          nodes.push(merged)
+        }
+        
+        this.treeSteps.push({
+          nodes: [...nodes],
+          tree: nodes.length === 1 ? this.deepCopyNode(nodes[0]) : null,
+          merged: { left: left.char || `(${left.freq})`, right: right.char || `(${right.freq})`, freq: merged.freq },
+          description: `マージ: ${left.char || `(${left.freq})`}(${left.freq}) + ${right.char || `(${right.freq})`}(${right.freq}) → (${merged.freq})`
+        })
+      }
+    } catch (error) {
+      console.error('Error in generateTreeSteps:', error)
+      this.treeSteps = []
+      alert('ハフマン木のステップ生成中にエラーが発生しました。')
     }
   }
 
