@@ -1328,7 +1328,8 @@ export class CompressionTool {
       this.treeSteps.push({
         nodes: [...nodes],
         tree: null,
-        description: '初期状態：文字を頻度順にソート'
+        description: '初期状態：文字を頻度順にソート',
+        forestNodes: this.buildForestSnapshot(nodes)
       })
       
       // 各マージステップ
@@ -1370,7 +1371,11 @@ export class CompressionTool {
           nodes: [...nodes],
           tree: nodes.length === 1 ? this.deepCopyNode(nodes[0]) : null,
           merged: { left: left.char || `(${left.freq})`, right: right.char || `(${right.freq})`, freq: merged.freq },
-          description: `マージ: ${left.char || `(${left.freq})`}(${left.freq}) + ${right.char || `(${right.freq})`}(${right.freq}) → (${merged.freq})`
+          description: `マージ: ${left.char || `(${left.freq})`}(${left.freq}) + ${right.char || `(${right.freq})`}(${right.freq}) → (${merged.freq})`,
+          // 段階的木構造表示用のデータ
+          forestNodes: this.buildForestSnapshot(nodes),
+          highlightPair: { left: this.deepCopyNode(left), right: this.deepCopyNode(right) },
+          newParent: this.deepCopyNode(merged)
         })
       }
     } catch (error) {
@@ -1408,6 +1413,185 @@ export class CompressionTool {
     const leftChars = this.getNodeChars(node.left)
     const rightChars = this.getNodeChars(node.right)
     return leftChars + rightChars
+  }
+
+  buildForestSnapshot(nodes) {
+    // 現在の森（複数の木）の状態をスナップショット
+    return nodes.map(node => this.deepCopyNode(node))
+  }
+
+  drawProgressiveHuffmanTree(svg, stepData) {
+    console.log('Drawing progressive tree for step:', stepData)
+    svg.innerHTML = ''
+    
+    if (!stepData) {
+      console.log('No step data provided')
+      return
+    }
+    
+    // SVGのサイズを設定
+    svg.setAttribute('width', '800')
+    svg.setAttribute('height', '500')
+    svg.setAttribute('viewBox', '0 0 800 500')
+    const width = 800
+    const height = 500
+    
+    if (stepData.tree) {
+      // 最終ステップ：完成した木を表示
+      this.drawCompleteTree(svg, stepData.tree, width, height)
+    } else if (stepData.forestNodes) {
+      // 中間ステップ：森の状態を表示
+      this.drawForestStage(svg, stepData.forestNodes, stepData.highlightPair, stepData.newParent, width, height)
+    } else if (stepData.nodes) {
+      // 初期ステップ：個別ノードを表示
+      this.drawInitialNodes(svg, stepData.nodes, width, height)
+    }
+  }
+
+  drawInitialNodes(svg, nodes, width, height) {
+    if (!nodes || !Array.isArray(nodes) || nodes.length === 0) return
+    
+    const spacing = Math.min(120, width / (nodes.length + 1))
+    const startX = (width - (nodes.length - 1) * spacing) / 2
+    const y = height - 80
+    const radius = 30
+    
+    nodes.forEach((node, index) => {
+      const x = startX + index * spacing
+      this.drawTreeNode(svg, node, x, y, radius, false)
+    })
+  }
+
+  drawForestStage(svg, forestNodes, highlightPair, newParent, width, height) {
+    // 森の各木を描画
+    const forestSpacing = width / (forestNodes.length + 1)
+    
+    forestNodes.forEach((tree, index) => {
+      const x = forestSpacing * (index + 1)
+      const isHighlighted = highlightPair && (
+        this.isSameNode(tree, highlightPair.left) || 
+        this.isSameNode(tree, highlightPair.right)
+      )
+      
+      this.drawSubTree(svg, tree, x, height - 80, isHighlighted)
+    })
+    
+    // 新しい親ノードを点線で表示（結合予定）
+    if (newParent && highlightPair) {
+      const leftIndex = forestNodes.findIndex(node => this.isSameNode(node, highlightPair.left))
+      const rightIndex = forestNodes.findIndex(node => this.isSameNode(node, highlightPair.right))
+      
+      if (leftIndex !== -1 && rightIndex !== -1) {
+        const leftX = forestSpacing * (leftIndex + 1)
+        const rightX = forestSpacing * (rightIndex + 1)
+        const parentX = (leftX + rightX) / 2
+        const parentY = height - 160
+        
+        // 親ノードを描画
+        this.drawTreeNode(svg, newParent, parentX, parentY, 30, true, true)
+        
+        // 接続線を描画
+        this.drawConnection(svg, parentX, parentY + 30, leftX, height - 110, true)
+        this.drawConnection(svg, parentX, parentY + 30, rightX, height - 110, true)
+      }
+    }
+  }
+
+  drawSubTree(svg, tree, centerX, baseY, isHighlighted = false) {
+    const maxDepth = this.getTreeDepth(tree)
+    const spacing = 60
+    
+    const drawNode = (node, x, y, level) => {
+      if (!node) return
+      
+      const radius = 25
+      this.drawTreeNode(svg, node, x, y, radius, isHighlighted)
+      
+      if (node.left || node.right) {
+        const childSpacing = spacing / Math.pow(1.5, level)
+        
+        if (node.left) {
+          const leftX = x - childSpacing
+          const leftY = y + 70
+          this.drawConnection(svg, x, y + radius, leftX, leftY - radius, isHighlighted)
+          drawNode(node.left, leftX, leftY, level + 1)
+        }
+        
+        if (node.right) {
+          const rightX = x + childSpacing
+          const rightY = y + 70
+          this.drawConnection(svg, x, y + radius, rightX, rightY - radius, isHighlighted)
+          drawNode(node.right, rightX, rightY, level + 1)
+        }
+      }
+    }
+    
+    drawNode(tree, centerX, baseY, 0)
+  }
+
+  drawCompleteTree(svg, tree, width, height) {
+    const centerX = width / 2
+    const topY = 50
+    this.drawSubTree(svg, tree, centerX, topY, false)
+  }
+
+  drawTreeNode(svg, node, x, y, radius, isHighlighted = false, isDashed = false) {
+    // ノード円を描画
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+    circle.setAttribute('cx', x)
+    circle.setAttribute('cy', y)
+    circle.setAttribute('r', radius)
+    circle.setAttribute('fill', node.char ? '#3b82f6' : '#e5e7eb')
+    circle.setAttribute('stroke', isHighlighted ? '#ef4444' : '#374151')
+    circle.setAttribute('stroke-width', isHighlighted ? '3' : '2')
+    
+    if (isDashed) {
+      circle.setAttribute('stroke-dasharray', '5,5')
+      circle.setAttribute('opacity', '0.7')
+    }
+    
+    svg.appendChild(circle)
+    
+    // ノードラベルを描画
+    this.drawNodeLabel(svg, x, y, node)
+    
+    // ハイライト効果
+    if (isHighlighted) {
+      const highlight = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+      highlight.setAttribute('cx', x)
+      highlight.setAttribute('cy', y)
+      highlight.setAttribute('r', radius + 5)
+      highlight.setAttribute('fill', 'none')
+      highlight.setAttribute('stroke', '#ef4444')
+      highlight.setAttribute('stroke-width', '2')
+      highlight.setAttribute('opacity', '0.5')
+      svg.appendChild(highlight)
+    }
+  }
+
+  drawConnection(svg, x1, y1, x2, y2, isHighlighted = false) {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+    line.setAttribute('x1', x1)
+    line.setAttribute('y1', y1)
+    line.setAttribute('x2', x2)
+    line.setAttribute('y2', y2)
+    line.setAttribute('stroke', isHighlighted ? '#ef4444' : '#374151')
+    line.setAttribute('stroke-width', isHighlighted ? '3' : '2')
+    svg.appendChild(line)
+  }
+
+  getTreeDepth(node, depth = 0) {
+    if (!node) return depth
+    if (!node.left && !node.right) return depth
+    
+    const leftDepth = node.left ? this.getTreeDepth(node.left, depth + 1) : depth
+    const rightDepth = node.right ? this.getTreeDepth(node.right, depth + 1) : depth
+    return Math.max(leftDepth, rightDepth)
+  }
+
+  isSameNode(node1, node2) {
+    if (!node1 || !node2) return false
+    return node1.char === node2.char && node1.freq === node2.freq
   }
 
   updateCodeTable() {
@@ -1538,16 +1722,8 @@ export class CompressionTool {
     
     if (svg) {
       console.log('SVG element found')
-      if (currentStep.tree) {
-        console.log('Drawing tree:', currentStep.tree)
-        this.drawHuffmanTree(svg, currentStep.tree)
-      } else if (currentStep.nodes && currentStep.nodes.length > 0) {
-        console.log('Drawing individual nodes:', currentStep.nodes)
-        this.drawNodesOnly(svg, currentStep.nodes)
-      } else {
-        console.log('No tree or nodes in current step')
-        svg.innerHTML = '<text x="400" y="200" text-anchor="middle" font-size="16" fill="#666">ハフマン木構築中...</text>'
-      }
+      // 新しい段階的木構造表示を使用
+      this.drawProgressiveHuffmanTree(svg, currentStep)
     } else {
       console.error('SVG element not found!')
     }
