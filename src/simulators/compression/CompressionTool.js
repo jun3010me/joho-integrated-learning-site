@@ -1577,91 +1577,103 @@ export class CompressionTool {
       return
     }
     
-    console.log('🚀 === 完璧な初期ノード表示開始 ===')
+    console.log('🚀 === 緊急修正: 座標重複の完全解決 ===')
     console.log('📊 Nodes to display:', nodes.map(n => `${n.char}(${n.freq})`))
     console.log('📐 Container size:', width, 'x', height)
     
-    // まずSVGを完全にクリア
+    // SVGを完全にクリア
     svg.innerHTML = ''
     console.log('🧹 SVG cleared completely')
     
-    const nodeRadius = 25  // 少し小さくして確実に分離
-    const minSpacing = 140  // より大きな間隔
-    const padding = 80      // より大きな余白
+    // 数値を確定して強制的に分離
+    const nodeRadius = 25
+    const FIXED_SPACING = 120  // 固定間隔
+    const FIXED_START_X = 100  // 固定開始位置
+    const FIXED_Y = height - 100  // 固定高さ
     
     // 頻度の昇順でソート（E, D, C, B, A）
     const sortedNodes = [...nodes].sort((a, b) => a.freq - b.freq)
     console.log('📋 Sorted nodes:', sortedNodes.map(n => `${n.char}(${n.freq})`))
     
-    // 下部のY座標を計算（確実に見える位置）
-    const baseY = height - padding - 30
-    console.log('📍 Base Y position:', baseY)
+    // 使用された座標の追跡
+    const usedPositions = []
     
-    // 必要な全体幅を計算
-    const totalSpacing = (sortedNodes.length - 1) * minSpacing
-    const availableWidth = width - (padding * 2)
-    
-    let actualSpacing = minSpacing
-    let startX = padding + 30  // 確実に余白を取る
-    
-    if (totalSpacing > availableWidth) {
-      // 収まらない場合は間隔を調整
-      actualSpacing = availableWidth / (sortedNodes.length - 1)
-      console.log('⚠️ Spacing adjusted to:', actualSpacing)
-    } else {
-      // 余裕がある場合は中央揃え
-      const extraSpace = availableWidth - totalSpacing
-      startX = padding + (extraSpace / 2) + 30
-      console.log('✅ Centered with extra space:', extraSpace)
-    }
-    
-    console.log('🎯 Start X:', startX, 'Actual spacing:', actualSpacing)
-    
-    // 各ノードを確実に分離して描画
+    // 各ノードを強制的に分離して配置
     sortedNodes.forEach((node, index) => {
-      const x = startX + (index * actualSpacing)
-      const y = baseY
+      // 強制的な固定座標計算
+      let calculatedX = FIXED_START_X + (index * FIXED_SPACING)
+      let calculatedY = FIXED_Y
       
-      console.log(`🎨 Drawing node ${node.char}(${node.freq}) at EXACT position (${x.toFixed(1)}, ${y.toFixed(1)})`)
+      // 重複チェック
+      const isDuplicate = usedPositions.some(pos => 
+        Math.abs(pos.x - calculatedX) < 10 && Math.abs(pos.y - calculatedY) < 10
+      )
       
-      // 確実に描画されるよう、シンプルなSVG要素を直接作成
-      this.drawSimpleNode(svg, node, x, y, nodeRadius)
+      if (isDuplicate) {
+        console.error(`❌ 座標重複検出: ${node.char} at (${calculatedX}, ${calculatedY})`)
+        // 緊急回避: X座標を強制調整
+        calculatedX += (index * 30) + 50 // より大きなオフセット
+        console.log(`⚠️ 緊急調整: ${node.char} → (${calculatedX}, ${calculatedY})`)
+      }
+      
+      // 位置を記録
+      usedPositions.push({ x: calculatedX, y: calculatedY, node: node.char })
+      
+      console.log(`🎯 ノード ${node.char}(${node.freq}): `)
+      console.log(`   - 計算座標: (${calculatedX.toFixed(1)}, ${calculatedY.toFixed(1)})`)
+      console.log(`   - index: ${index}, total: ${sortedNodes.length}`)
+      console.log(`   - 重複チェック: ${isDuplicate ? '❌ 重複' : '✅ 正常'}`)
+      
+      // 確実なSVG描画
+      this.drawForcePositionedNode(svg, node, calculatedX, calculatedY, nodeRadius, index)
     })
     
-    // 最終確認: SVGの内容をログ出力
+    // 最終検証
+    console.log('🔍 最終位置確認:')
+    usedPositions.forEach((pos, i) => {
+      console.log(`   ${i + 1}. ${pos.node}: (${pos.x}, ${pos.y})`)
+    })
+    
     console.log('📄 SVG children count:', svg.children.length)
-    console.log('✅ === 完璧な初期ノード表示完了 ===')
+    console.log('✅ === 緊急修正完了 ===')
   }
 
-  drawSimpleNode(svg, node, x, y, radius) {
-    console.log(`🎪 Creating simple node for ${node.char} at (${x}, ${y})`)
+  drawForcePositionedNode(svg, node, x, y, radius, index) {
+    console.log(`📍 強制位置: ${node.char} at (${x}, ${y}) - index ${index}`)
     
-    // 影
+    // 各要素に一意のIDを付与して重複を防止
+    const baseId = `node-${node.char}-${index}-${Date.now()}`
+    
+    // 背景影 (追跡用)
     const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+    shadow.setAttribute('id', `${baseId}-shadow`)
     shadow.setAttribute('cx', x + 2)
     shadow.setAttribute('cy', y + 2)
     shadow.setAttribute('r', radius)
-    shadow.setAttribute('fill', 'rgba(0, 0, 0, 0.2)')
+    shadow.setAttribute('fill', 'rgba(0, 0, 0, 0.3)')
     svg.appendChild(shadow)
     
-    // メインサークル
+    // メインサークル (各ノードに異なる色)
+    const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6'] // E, D, C, B, A
     const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+    circle.setAttribute('id', `${baseId}-circle`)
     circle.setAttribute('cx', x)
     circle.setAttribute('cy', y)
     circle.setAttribute('r', radius)
-    circle.setAttribute('fill', '#3b82f6')
-    circle.setAttribute('stroke', '#1e40af')
-    circle.setAttribute('stroke-width', '2')
+    circle.setAttribute('fill', colors[index % colors.length])
+    circle.setAttribute('stroke', '#000000')
+    circle.setAttribute('stroke-width', '3')
     svg.appendChild(circle)
     
     // 文字ラベル
     const charText = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+    charText.setAttribute('id', `${baseId}-char`)
     charText.setAttribute('x', x)
-    charText.setAttribute('y', y - 3)
+    charText.setAttribute('y', y - 2)
     charText.setAttribute('text-anchor', 'middle')
     charText.setAttribute('dominant-baseline', 'middle')
     charText.setAttribute('font-family', 'Arial, sans-serif')
-    charText.setAttribute('font-size', '14')
+    charText.setAttribute('font-size', '16')
     charText.setAttribute('font-weight', 'bold')
     charText.setAttribute('fill', 'white')
     charText.textContent = node.char
@@ -1669,18 +1681,47 @@ export class CompressionTool {
     
     // 頻度ラベル
     const freqText = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+    freqText.setAttribute('id', `${baseId}-freq`)
     freqText.setAttribute('x', x)
-    freqText.setAttribute('y', y + 8)
+    freqText.setAttribute('y', y + 12)
     freqText.setAttribute('text-anchor', 'middle')
     freqText.setAttribute('dominant-baseline', 'middle')
     freqText.setAttribute('font-family', 'Arial, sans-serif')
-    freqText.setAttribute('font-size', '10')
+    freqText.setAttribute('font-size', '12')
     freqText.setAttribute('font-weight', 'bold')
     freqText.setAttribute('fill', 'white')
     freqText.textContent = node.freq
     svg.appendChild(freqText)
     
-    console.log(`✅ Node ${node.char} created successfully`)
+    // デバッグ用数字 (一時的)
+    const debugText = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+    debugText.setAttribute('id', `${baseId}-debug`)
+    debugText.setAttribute('x', x)
+    debugText.setAttribute('y', y - 35)
+    debugText.setAttribute('text-anchor', 'middle')
+    debugText.setAttribute('font-family', 'Arial, sans-serif')
+    debugText.setAttribute('font-size', '14')
+    debugText.setAttribute('font-weight', 'bold')
+    debugText.setAttribute('fill', '#000000')
+    debugText.textContent = `#${index + 1}`
+    svg.appendChild(debugText)
+    
+    // DOM要素の実際の位置を確認
+    setTimeout(() => {
+      const actualCircle = document.getElementById(`${baseId}-circle`)
+      if (actualCircle) {
+        const actualCx = actualCircle.getAttribute('cx')
+        const actualCy = actualCircle.getAttribute('cy')
+        console.log(`📍 ${node.char} DOM位置確認: cx=${actualCx}, cy=${actualCy}`)
+      }
+    }, 50)
+    
+    console.log(`✅ 強制位置ノード ${node.char} 作成完了`)
+  }
+
+  drawSimpleNode(svg, node, x, y, radius) {
+    // 旧メソッドを新メソッドにリダイレクト
+    this.drawForcePositionedNode(svg, node, x, y, radius, 0)
   }
 
   drawInitialNodes(svg, nodes, width, height) {
