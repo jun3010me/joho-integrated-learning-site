@@ -1087,6 +1087,8 @@ export class CompressionTool {
   }
 
   buildHuffmanTree() {
+    console.log('=== buildHuffmanTree called ===')
+    
     // 頻度データを収集
     const frequencies = {}
     let totalFreq = 0
@@ -1094,11 +1096,15 @@ export class CompressionTool {
     ['a', 'b', 'c', 'd', 'e'].forEach(char => {
       const input = document.getElementById(`freq-${char}`)
       const value = input ? parseInt(input.value) || 0 : 0
+      console.log(`freq-${char}: ${value}`)
       if (value > 0) {
         frequencies[char.toUpperCase()] = value
         totalFreq += value
       }
     })
+    
+    console.log('Collected frequencies:', frequencies)
+    console.log('Total frequency:', totalFreq)
     
     if (totalFreq !== 100) {
       alert('出現頻度の合計を100%にしてください')
@@ -1110,15 +1116,35 @@ export class CompressionTool {
       return
     }
     
+    // SVG要素の存在確認
+    const svg = document.getElementById('huffman-tree')
+    console.log('SVG element check:', svg)
+    if (!svg) {
+      console.error('SVG element "huffman-tree" not found!')
+      alert('ハフマン木を表示するためのSVG要素が見つかりません。木構築タブに移動してから実行してください。')
+      return
+    }
+    
     // ハフマン符号を生成
+    console.log('Generating Huffman codes...')
     this.huffmanCodes = this.generateHuffmanCodes(frequencies)
+    console.log('Generated codes:', this.huffmanCodes)
+    
+    console.log('Generating tree steps...')
     this.generateTreeSteps(frequencies)
+    console.log('Generated steps:', this.treeSteps.length)
+    
     this.updateCodeTable()
     
     // 木構築完了を表示
     if (this.treeSteps.length > 0) {
       this.currentTreeStep = this.treeSteps.length - 1
+      console.log('Updating tree visualization...')
       this.updateTreeVisualization()
+      
+      // 自動的に木構築タブに切り替え
+      this.switchSubsection('huffman', 'tree')
+      
       alert('ハフマン木が構築されました！木構築タブで過程を確認できます。')
     }
   }
