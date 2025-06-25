@@ -1468,11 +1468,28 @@ export class CompressionTool {
 
   drawForestStage(svg, forestNodes, highlightPair, newParent, width, height) {
     // 森の各木を描画（上部から構築するため基準点を変更）
-    const forestSpacing = width / (forestNodes.length + 1)
     const baseY = height - 50  // 葉ノードの基準位置
     
+    // 各木の幅を計算して適切な間隔を確保
+    const treeWidths = forestNodes.map(tree => this.calculateTreeWidth(tree))
+    const totalTreeWidth = treeWidths.reduce((sum, w) => sum + w, 0)
+    const availableWidth = width - 40  // 左右マージン20pxずつ
+    const minSpacing = 60  // 最小間隔
+    const totalMinSpacing = (forestNodes.length - 1) * minSpacing
+    
+    // 適応的スペーシングを計算
+    let spacing
+    if (totalTreeWidth + totalMinSpacing <= availableWidth) {
+      // 余裕がある場合は均等配置
+      spacing = (availableWidth - totalTreeWidth) / (forestNodes.length + 1)
+    } else {
+      // スペースが不足している場合は最小間隔を使用
+      spacing = minSpacing
+    }
+    
+    let currentX = 20 + treeWidths[0] / 2  // 左マージン + 最初の木の半分
+    
     forestNodes.forEach((tree, index) => {
-      const x = forestSpacing * (index + 1)
       const isHighlighted = highlightPair && (
         this.isSameNode(tree, highlightPair.left) || 
         this.isSameNode(tree, highlightPair.right)
@@ -1480,8 +1497,13 @@ export class CompressionTool {
       
       // 木の高さを計算して上部に配置
       const treeDepth = this.getTreeDepth(tree)
-      const treeTopY = baseY - (treeDepth * 70)  // 各レベル70px間隔
-      this.drawSubTreeFromTop(svg, tree, x, treeTopY, isHighlighted)
+      const treeTopY = baseY - (treeDepth * 80)  // 各レベル80px間隔（余白増加）
+      this.drawSubTreeFromTop(svg, tree, currentX, treeTopY, isHighlighted)
+      
+      // 次の木の位置を計算
+      if (index < forestNodes.length - 1) {
+        currentX += treeWidths[index] / 2 + spacing + treeWidths[index + 1] / 2
+      }
     })
     
     // 新しい親ノードを点線で表示（結合予定）
@@ -1492,22 +1514,32 @@ export class CompressionTool {
       if (leftIndex !== -1 && rightIndex !== -1) {
         const leftTree = forestNodes[leftIndex]
         const rightTree = forestNodes[rightIndex]
-        const leftX = forestSpacing * (leftIndex + 1)
-        const rightX = forestSpacing * (rightIndex + 1)
+        
+        // 実際の木の位置を再計算
+        let leftX = 20 + treeWidths[0] / 2
+        let rightX = 20 + treeWidths[0] / 2
+        
+        for (let i = 0; i < leftIndex; i++) {
+          leftX += treeWidths[i] / 2 + spacing + treeWidths[i + 1] / 2
+        }
+        for (let i = 0; i < rightIndex; i++) {
+          rightX += treeWidths[i] / 2 + spacing + treeWidths[i + 1] / 2
+        }
+        
         const parentX = (leftX + rightX) / 2
         
         // 左右の木の最上部を計算
         const leftDepth = this.getTreeDepth(leftTree)
         const rightDepth = this.getTreeDepth(rightTree)
         const maxDepth = Math.max(leftDepth, rightDepth)
-        const parentY = baseY - (maxDepth * 70) - 70  // さらに上に親ノード配置
+        const parentY = baseY - (maxDepth * 80) - 80  // さらに上に親ノード配置（間隔増加）
         
         // 親ノードを描画
         this.drawTreeNode(svg, newParent, parentX, parentY, 30, true, true)
         
         // 接続線を描画（子の最上部に接続）
-        const leftTopY = baseY - (leftDepth * 70)
-        const rightTopY = baseY - (rightDepth * 70)
+        const leftTopY = baseY - (leftDepth * 80)
+        const rightTopY = baseY - (rightDepth * 80)
         this.drawConnection(svg, parentX, parentY + 30, leftX, leftTopY - 30, true)
         this.drawConnection(svg, parentX, parentY + 30, rightX, rightTopY - 30, true)
       }
@@ -1547,7 +1579,7 @@ export class CompressionTool {
   }
 
   drawSubTreeFromTop(svg, tree, centerX, topY, isHighlighted = false) {
-    const spacing = 60
+    const baseSpacing = 80  // ベース間隔を増加
     
     const drawNode = (node, x, y, level) => {
       if (!node) return
@@ -1556,18 +1588,21 @@ export class CompressionTool {
       this.drawTreeNode(svg, node, x, y, radius, isHighlighted)
       
       if (node.left || node.right) {
-        const childSpacing = spacing / Math.pow(1.5, level)
+        // レベルに応じて適切な間隔を計算（より緩やかな縮小）
+        const childSpacing = baseSpacing / Math.pow(1.3, level)
+        const minSpacing = 40  // 最小間隔を保証
+        const actualSpacing = Math.max(childSpacing, minSpacing)
         
         if (node.left) {
-          const leftX = x - childSpacing
-          const leftY = y + 70
+          const leftX = x - actualSpacing
+          const leftY = y + 80  // 垂直間隔も増加
           this.drawConnection(svg, x, y + radius, leftX, leftY - radius, isHighlighted)
           drawNode(node.left, leftX, leftY, level + 1)
         }
         
         if (node.right) {
-          const rightX = x + childSpacing
-          const rightY = y + 70
+          const rightX = x + actualSpacing
+          const rightY = y + 80  // 垂直間隔も増加
           this.drawConnection(svg, x, y + radius, rightX, rightY - radius, isHighlighted)
           drawNode(node.right, rightX, rightY, level + 1)
         }
@@ -1577,11 +1612,28 @@ export class CompressionTool {
     drawNode(tree, centerX, topY, 0)
   }
 
+  calculateTreeWidth(tree, level = 0) {
+    if (!tree) return 0
+    
+    // 葉ノードの場合
+    if (!tree.left && !tree.right) {
+      return 60  // ノード直径 + マージン
+    }
+    
+    // 内部ノードの場合、子の幅を再帰的に計算
+    const baseSpacing = 80
+    const actualSpacing = Math.max(baseSpacing / Math.pow(1.3, level), 40) * 2  // 左右の合計
+    const leftWidth = tree.left ? this.calculateTreeWidth(tree.left, level + 1) : 0
+    const rightWidth = tree.right ? this.calculateTreeWidth(tree.right, level + 1) : 0
+    
+    return Math.max(leftWidth + rightWidth + actualSpacing, 60)
+  }
+
   drawCompleteTree(svg, tree, width, height) {
     const centerX = width / 2
     const baseY = height - 50  // 構築過程と同じベースライン
     const treeDepth = this.getTreeDepth(tree)
-    const topY = baseY - (treeDepth * 70)  // 構築過程と同じ計算方法
+    const topY = baseY - (treeDepth * 80)  // 構築過程と同じ計算方法（間隔調整）
     this.drawSubTreeFromTop(svg, tree, centerX, topY, false)
   }
 
