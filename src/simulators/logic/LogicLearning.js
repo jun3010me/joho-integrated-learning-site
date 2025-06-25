@@ -613,11 +613,53 @@ export class LogicLearning {
     let normalizedExpr = expression.toUpperCase().trim()
     let gateId = 0
     
-    // より詳細なパターンマッチング
-    if (normalizedExpr.includes(' AND ') && normalizedExpr.includes(' OR ')) {
-      // AND と OR が混在している場合
-      
-      // "A AND B OR B" のような場合を処理
+    // 括弧を含む複雑な式への対応
+    if (normalizedExpr.includes('(') && normalizedExpr.includes(')')) {
+      // 括弧付きの式を処理
+      if (normalizedExpr.match(/\(.*\)\s+AND\s+/)) {
+        // (A OR B) AND C のパターン
+        const match = normalizedExpr.match(/\((.*?)\)\s+AND\s+(.*)/)
+        if (match) {
+          const innerExpr = match[1].trim()
+          const rightExpr = match[2].trim()
+          
+          if (innerExpr.includes(' OR ')) {
+            const orParts = innerExpr.split(' OR ').map(part => part.trim())
+            
+            // ORゲートを追加
+            const orGate = {
+              id: `gate_${gateId++}`,
+              type: 'OR',
+              inputs: orParts,
+              x: 200,
+              y: 120,
+              output: `or_out_1`
+            }
+            gates.push(orGate)
+            
+            // ANDゲートを追加
+            const andGate = {
+              id: `gate_${gateId++}`,
+              type: 'AND',
+              inputs: [orGate.output, rightExpr],
+              x: 350,
+              y: 140,
+              output: 'Y'
+            }
+            gates.push(andGate)
+            
+            // 接続を定義
+            connections.push({
+              from: orGate.id,
+              to: andGate.id,
+              fromOutput: orGate.output,
+              toInput: 0
+            })
+          }
+        }
+      }
+    } else if (normalizedExpr.includes(' AND ') && normalizedExpr.includes(' OR ')) {
+      // AND と OR が混在している場合（括弧なし）
       const orParts = normalizedExpr.split(' OR ')
       
       if (orParts.length === 2) {
@@ -625,7 +667,7 @@ export class LogicLearning {
         const rightPart = orParts[1].trim()
         
         if (leftPart.includes(' AND ')) {
-          // 左側がAND演算の場合
+          // 左側がAND演算の場合: A AND B OR C
           const andParts = leftPart.split(' AND ').map(part => part.trim())
           
           // ANDゲートを追加
@@ -658,6 +700,45 @@ export class LogicLearning {
             toInput: 0
           })
         }
+      }
+    } else if (normalizedExpr.startsWith('NOT ') && normalizedExpr.includes(' AND ')) {
+      // NOT A AND B のパターン
+      const parts = normalizedExpr.split(' AND ')
+      const leftPart = parts[0].trim() // "NOT A"
+      const rightPart = parts[1].trim() // "B"
+      
+      if (leftPart.startsWith('NOT ')) {
+        const notInput = leftPart.replace('NOT ', '').trim()
+        
+        // NOTゲートを追加
+        const notGate = {
+          id: `gate_${gateId++}`,
+          type: 'NOT',
+          inputs: [notInput],
+          x: 150,
+          y: 100,
+          output: `not_out_1`
+        }
+        gates.push(notGate)
+        
+        // ANDゲートを追加
+        const andGate = {
+          id: `gate_${gateId++}`,
+          type: 'AND',
+          inputs: [notGate.output, rightPart],
+          x: 300,
+          y: 130,
+          output: 'Y'
+        }
+        gates.push(andGate)
+        
+        // 接続を定義
+        connections.push({
+          from: notGate.id,
+          to: andGate.id,
+          fromOutput: notGate.output,
+          toInput: 0
+        })
       }
     } else if (normalizedExpr.includes(' AND ')) {
       // ANDのみの場合
@@ -695,8 +776,8 @@ export class LogicLearning {
         output: 'Y'
       }
       gates.push(xorGate)
-    } else if (normalizedExpr.includes('NOT ')) {
-      // NOTの場合
+    } else if (normalizedExpr.startsWith('NOT ')) {
+      // NOTのみの場合
       const notInput = normalizedExpr.replace('NOT ', '').trim()
       const notGate = {
         id: `gate_${gateId++}`,
@@ -781,10 +862,15 @@ export class LogicLearning {
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     
-    // 入力変数を描画
-    const inputX = 50
-    const inputSpacing = 60
-    const startY = 80
+    // 動的レイアウト計算
+    const numVariables = circuit.variables.length
+    const canvasHeight = canvas.height
+    const availableHeight = canvasHeight - 120 // 上下マージン
+    const inputSpacing = Math.min(60, availableHeight / Math.max(numVariables, 2))
+    const startY = (canvasHeight - (numVariables - 1) * inputSpacing) / 2
+    
+    // 入力変数を描画（使用される変数のみ）
+    const inputX = 60
     
     circuit.variables.forEach((variable, index) => {
       const y = startY + index * inputSpacing
@@ -792,18 +878,22 @@ export class LogicLearning {
       // 入力端子の円
       ctx.beginPath()
       ctx.arc(inputX, y, 8, 0, 2 * Math.PI)
-      ctx.fillStyle = '#e5e7eb'
+      ctx.fillStyle = '#dbeafe'
       ctx.fill()
+      ctx.strokeStyle = '#1e40af'
       ctx.stroke()
       
       // 変数ラベル
-      ctx.fillStyle = '#1f2937'
-      ctx.fillText(variable, inputX - 25, y)
+      ctx.fillStyle = '#1e40af'
+      ctx.font = 'bold 16px Arial'
+      ctx.fillText(variable, inputX - 30, y)
       
       // 入力線を延長
+      ctx.strokeStyle = '#374151'
+      ctx.lineWidth = 2
       ctx.beginPath()
       ctx.moveTo(inputX + 8, y)
-      ctx.lineTo(inputX + 40, y)
+      ctx.lineTo(inputX + 50, y)
       ctx.stroke()
     })
     
@@ -824,19 +914,21 @@ export class LogicLearning {
           if (gate.inputs.length === 1) {
             inputY = gateY
           } else {
-            inputY = gateY - 10 + (inputIndex * 20)
+            inputY = gateY - 15 + (inputIndex * 30)
           }
           
           // 配線の描画
+          ctx.strokeStyle = '#374151'
+          ctx.lineWidth = 2
           ctx.beginPath()
-          ctx.moveTo(inputX + 40, varY)
+          ctx.moveTo(inputX + 50, varY)
           
           // 直接接続できる場合
-          if (Math.abs(varY - inputY) < 10) {
+          if (Math.abs(varY - inputY) < 15) {
             ctx.lineTo(gateX - 30, inputY)
           } else {
             // 垂直線が必要な場合
-            const midX = gateX - 80
+            const midX = gateX - 90
             ctx.lineTo(midX, varY)
             ctx.lineTo(midX, inputY)
             ctx.lineTo(gateX - 30, inputY)
@@ -845,7 +937,7 @@ export class LogicLearning {
           
           // 接続点を描画
           ctx.beginPath()
-          ctx.arc(gateX - 30, inputY, 2, 0, 2 * Math.PI)
+          ctx.arc(gateX - 30, inputY, 3, 0, 2 * Math.PI)
           ctx.fillStyle = '#374151'
           ctx.fill()
         } else {
@@ -858,10 +950,12 @@ export class LogicLearning {
               if (gate.inputs.length === 1) {
                 inputY = gateY
               } else {
-                inputY = gateY - 10 + (inputIndex * 20)
+                inputY = gateY - 15 + (inputIndex * 30)
               }
               
               // ゲート間の接続
+              ctx.strokeStyle = '#374151'
+              ctx.lineWidth = 3
               ctx.beginPath()
               ctx.moveTo(fromGate.x + 30, fromGate.y)
               ctx.lineTo(gateX - 30, inputY)
@@ -869,8 +963,8 @@ export class LogicLearning {
               
               // 接続点を描画
               ctx.beginPath()
-              ctx.arc(gateX - 30, inputY, 2, 0, 2 * Math.PI)
-              ctx.fillStyle = '#374151'
+              ctx.arc(gateX - 30, inputY, 3, 0, 2 * Math.PI)
+              ctx.fillStyle = '#dc2626'
               ctx.fill()
             }
           }
@@ -883,21 +977,34 @@ export class LogicLearning {
       // 出力線を描画
       if (gate.output === 'Y') {
         // 最終出力
+        ctx.strokeStyle = '#374151'
+        ctx.lineWidth = 3
         ctx.beginPath()
         ctx.moveTo(gateX + 30, gateY)
-        ctx.lineTo(canvas.width - 80, gateY)
+        ctx.lineTo(canvas.width - 100, gateY)
         ctx.stroke()
         
         // 出力端子
         ctx.beginPath()
-        ctx.arc(canvas.width - 80, gateY, 8, 0, 2 * Math.PI)
-        ctx.fillStyle = '#fef3c7'
+        ctx.arc(canvas.width - 100, gateY, 10, 0, 2 * Math.PI)
+        ctx.fillStyle = '#fbbf24'
         ctx.fill()
+        ctx.strokeStyle = '#d97706'
+        ctx.lineWidth = 2
         ctx.stroke()
         
         // 出力ラベル
-        ctx.fillStyle = '#1f2937'
-        ctx.fillText('Y', canvas.width - 50, gateY)
+        ctx.fillStyle = '#d97706'
+        ctx.font = 'bold 18px Arial'
+        ctx.fillText('Y', canvas.width - 60, gateY)
+      } else {
+        // 中間出力
+        ctx.strokeStyle = '#374151'
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.moveTo(gateX + 30, gateY)
+        ctx.lineTo(gateX + 60, gateY)
+        ctx.stroke()
       }
     })
   }
@@ -933,7 +1040,9 @@ export class LogicLearning {
 
   drawAndGate(ctx, x, y) {
     // AND ゲートの形状（D型）
-    ctx.fillStyle = '#ffffff'
+    ctx.fillStyle = '#dbeafe'
+    ctx.strokeStyle = '#1e40af'
+    ctx.lineWidth = 3
     ctx.beginPath()
     ctx.moveTo(x - 30, y - 20)
     ctx.lineTo(x, y - 20)
@@ -945,13 +1054,15 @@ export class LogicLearning {
     
     // ANDシンボル
     ctx.fillStyle = '#1e40af'
-    ctx.font = '16px Arial'
+    ctx.font = 'bold 16px Arial'
     ctx.fillText('&', x - 15, y)
   }
 
   drawOrGate(ctx, x, y) {
     // OR ゲートの形状
-    ctx.fillStyle = '#ffffff'
+    ctx.fillStyle = '#dcfce7'
+    ctx.strokeStyle = '#166534'
+    ctx.lineWidth = 3
     ctx.beginPath()
     ctx.moveTo(x - 30, y - 20)
     ctx.quadraticCurveTo(x - 10, y - 20, x + 20, y)
@@ -962,13 +1073,15 @@ export class LogicLearning {
     
     // ORシンボル
     ctx.fillStyle = '#166534'
-    ctx.font = '12px Arial'
+    ctx.font = 'bold 12px Arial'
     ctx.fillText('≥1', x - 10, y)
   }
 
   drawNotGate(ctx, x, y) {
     // NOT ゲートの形状（三角形）
-    ctx.fillStyle = '#ffffff'
+    ctx.fillStyle = '#fef2f2'
+    ctx.strokeStyle = '#dc2626'
+    ctx.lineWidth = 3
     ctx.beginPath()
     ctx.moveTo(x - 30, y - 15)
     ctx.lineTo(x - 30, y + 15)
@@ -982,12 +1095,15 @@ export class LogicLearning {
     ctx.arc(x + 15, y, 5, 0, 2 * Math.PI)
     ctx.fillStyle = '#ffffff'
     ctx.fill()
+    ctx.strokeStyle = '#dc2626'
     ctx.stroke()
   }
 
   drawXorGate(ctx, x, y) {
     // XOR ゲートの形状（OR + 追加線）
-    ctx.fillStyle = '#ffffff'
+    ctx.fillStyle = '#f3e8ff'
+    ctx.strokeStyle = '#7c3aed'
+    ctx.lineWidth = 3
     
     // メインのOR形状
     ctx.beginPath()
@@ -1006,13 +1122,15 @@ export class LogicLearning {
     
     // XORシンボル
     ctx.fillStyle = '#7c3aed'
-    ctx.font = '12px Arial'
+    ctx.font = 'bold 12px Arial'
     ctx.fillText('⊕', x - 10, y)
   }
 
   drawBufferGate(ctx, x, y) {
     // BUFFER ゲートの形状（三角形、NOT無し）
-    ctx.fillStyle = '#ffffff'
+    ctx.fillStyle = '#f9fafb'
+    ctx.strokeStyle = '#6b7280'
+    ctx.lineWidth = 3
     ctx.beginPath()
     ctx.moveTo(x - 30, y - 15)
     ctx.lineTo(x - 30, y + 15)
@@ -1023,7 +1141,7 @@ export class LogicLearning {
     
     // BUFFERシンボル
     ctx.fillStyle = '#6b7280'
-    ctx.font = '10px Arial'
+    ctx.font = 'bold 12px Arial'
     ctx.fillText('1', x - 15, y)
   }
 
