@@ -45,7 +45,7 @@ export class App {
             <div class="flex justify-between items-center h-16">
               <div class="flex items-center space-x-4">
                 <div class="flex-shrink-0">
-                  <h1 class="text-xl font-bold text-gray-900">📚 じょうほうらいふ</h1>
+                  <a href="#" id="site-title-link" class="text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors duration-200 cursor-pointer">📚 じょうほうらいふ</a>
                 </div>
               </div>
               <nav id="main-navigation" class="hidden md:flex space-x-1">
@@ -91,6 +91,13 @@ export class App {
     mobileMenuButton.addEventListener('click', () => {
       mobileMenu.classList.toggle('hidden')
     })
+    
+    // サイトタイトルリンクの設定
+    const siteTitleLink = document.getElementById('site-title-link')
+    siteTitleLink.addEventListener('click', (e) => {
+      e.preventDefault()
+      this.navigateTo('home')
+    })
   }
 
   setupNavigation() {
@@ -116,6 +123,12 @@ export class App {
     switch(page) {
       case 'home':
         this.showHomePage()
+        // ホームページの場合はナビゲーションの状態をクリア
+        if (this.navigation) {
+          document.querySelectorAll('[data-page]').forEach(btn => {
+            btn.classList.remove('active')
+          })
+        }
         break
       case 'binary':
         this.showBinarySimulator()
@@ -137,6 +150,11 @@ export class App {
         break
       default:
         this.showHomePage()
+    }
+
+    // ホーム以外の場合はナビゲーション状態を更新
+    if (page !== 'home' && this.navigation) {
+      this.navigation.updateActiveState(page)
     }
 
     // モバイルメニューを閉じる

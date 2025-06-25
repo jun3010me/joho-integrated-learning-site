@@ -2,7 +2,6 @@ export class Navigation {
   constructor() {
     this.currentPage = 'home'
     this.navItems = [
-      { id: 'home', label: 'ホーム', icon: '🏠' },
       { id: 'binary', label: '数値変換', icon: '🔢' },
       { id: 'color', label: 'カラー', icon: '🎨' },
       { id: 'compression', label: 'データ圧縮', icon: '🗜️' },
@@ -25,7 +24,7 @@ export class Navigation {
     desktopNav.innerHTML = this.navItems.map(item => `
       <button 
         data-page="${item.id}" 
-        class="nav-item ${item.id === 'home' ? 'active' : ''} flex items-center space-x-2"
+        class="nav-item flex items-center space-x-2"
         title="${item.label}"
       >
         <span class="text-lg">${item.icon}</span>
@@ -37,7 +36,7 @@ export class Navigation {
     mobileNav.innerHTML = this.navItems.map(item => `
       <button 
         data-page="${item.id}" 
-        class="nav-item ${item.id === 'home' ? 'active' : ''} w-full text-left flex items-center space-x-3 px-3 py-2"
+        class="nav-item w-full text-left flex items-center space-x-3 px-3 py-2"
       >
         <span class="text-lg">${item.icon}</span>
         <span>${item.label}</span>
