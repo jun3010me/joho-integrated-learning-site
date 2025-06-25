@@ -377,7 +377,8 @@ export class LogicLearning {
             const gateHash = `${gate.type}:${gate.inputs.slice().sort().join(',')}`;
 
             if (gateHashes.has(gateHash)) {
-                outputMap[gate.output] = gateHashes.get(gateHash).output;
+                const existingGate = gateHashes.get(gateHash);
+                outputMap[gate.output] = existingGate.output;
             } else {
                 const newGateId = `m_gate_${mergedGates.length}`;
                 const newGateOutput = `${newGateId}_out`;
@@ -385,7 +386,7 @@ export class LogicLearning {
                 gate.id = newGateId;
                 gate.output = newGateOutput;
                 mergedGates.push(gate);
-                gateHashes.set(gateHash, {id: gate.id, output: gate.output});
+                gateHashes.set(gateHash, gate);
             }
         });
         const finalOutputInternalName = outputMap[parsedGates[parsedGates.length - 1]?.output];
@@ -398,8 +399,9 @@ export class LogicLearning {
 
     const { layout, canvasSize } = this.calculateLayout(mergedGates, variables);
     mergedGates.forEach(gate => {
-        gate.x = layout[gate.id]?.x || 250;
-        gate.y = layout[gate.id]?.y || 150;
+        const pos = layout[gate.id];
+        gate.x = pos?.x || 250;
+        gate.y = pos?.y || 150;
     });
 
     return { variables, gates: mergedGates, canvasSize };
