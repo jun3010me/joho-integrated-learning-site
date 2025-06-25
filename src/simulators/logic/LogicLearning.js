@@ -307,28 +307,28 @@ export class LogicLearning {
   }
 
   evaluateExpression(expression, values) {
-    let expr = expression.toUpperCase();
+    const upperExpr = expression.toUpperCase();
+    const tokens = this.tokenize(upperExpr);
 
-    // 1. Replace variables with their boolean values (true/false)
-    Object.entries(values).forEach(([v, val]) => {
-        expr = expr.replace(new RegExp(`\b${v}\b`, 'g'), val === 1 ? 'true' : 'false');
+    const jsTokens = tokens.map(token => {
+        if (values.hasOwnProperty(token)) {
+            return values[token] === 1 ? 'true' : 'false';
+        }
+        switch(token) {
+            case 'AND': return '&&';
+            case 'OR': return '||';
+            case 'NOT': return '!';
+            case 'XOR': return '!==';
+            case '(': return '(';
+            case ')': return ')';
+            default:
+                throw new Error(`Invalid token "${token}" in expression`);
+        }
     });
 
-    // 2. Replace logic operators with JS operators
-    expr = expr.replace(/\bAND\b/g, '&&')
-               .replace(/\bOR\b/g, '||')
-               .replace(/\bNOT\b/g, '!')
-               .replace(/\bXOR\b/g, '!=='); // Use !== for logical XOR
-
-    // 3. Validate the expression. It should only contain JS boolean operators, true/false, and parentheses.
-    const sanitized = expr.replace(/true|false|&&|\|\||!|!==|\(|\)|\s/g, '');
-    if (sanitized.length > 0) {
-        console.error(`Validation failed. Invalid parts found: "${sanitized}" in expression: "${expr}"`);
-        throw new Error('Invalid characters or structure in expression');
-    }
+    const expr = jsTokens.join(' ');
 
     try {
-        // 4. Use new Function for safer evaluation
         return new Function(`return !!(${expr});`)() ? 1 : 0;
     } catch (e) {
         console.error(`Error evaluating expression: "${expression}" -> "${expr}"`, e);
