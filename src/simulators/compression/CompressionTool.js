@@ -1460,13 +1460,21 @@ export class CompressionTool {
   }
 
   drawProgressiveHuffmanTree(svg, stepData) {
-    console.log('Drawing progressive tree for step:', stepData)
+    console.log('🎨 === MAIN: Drawing progressive tree for step:', stepData)
+    
+    // 確実にSVGをクリア
     svg.innerHTML = ''
+    console.log('🧹 SVG completely cleared')
     
     if (!stepData) {
-      console.log('No step data provided')
+      console.error('❌ No step data provided')
       return
     }
+    
+    console.log('🔍 Step data type check:')
+    console.log('- stepData.tree:', !!stepData.tree)
+    console.log('- stepData.forestNodes:', !!stepData.forestNodes)
+    console.log('- stepData.nodes:', !!stepData.nodes)
     
     // 動的サイズ計算
     const dimensions = this.calculateOptimalDimensions(stepData)
@@ -1492,9 +1500,14 @@ export class CompressionTool {
       this.drawForestStage(svg, stepData.forestNodes, stepData.highlightPair, stepData.newParent, dimensions.width, dimensions.height)
     } else if (stepData.nodes) {
       // 初期ステップ：個別ノードを表示
-      console.log('=== 初期ステップでノードを表示 ===')
-      console.log('stepData.nodes:', stepData.nodes.map(n => n.char + '(' + n.freq + ')'))
+      console.log('🚀 === CRITICAL: 初期ステップでノードを表示 ===')
+      console.log('📊 stepData.nodes:', stepData.nodes.map(n => n.char + '(' + n.freq + ')'))
+      console.log('📐 dimensions:', dimensions)
+      
+      // 確実に初期ノード描画だけを実行
       this.drawInitialNodesCorrectly(svg, stepData.nodes, dimensions.width, dimensions.height)
+      
+      console.log('✅ 初期ステップ完了')
     }
   }
 
@@ -1560,62 +1573,119 @@ export class CompressionTool {
 
   drawInitialNodesCorrectly(svg, nodes, width, height) {
     if (!nodes || !Array.isArray(nodes) || nodes.length === 0) {
-      console.error('No nodes to display!')
+      console.error('❌ No nodes to display!')
       return
     }
     
-    console.log('=== 正しい初期ノード表示開始 ===')
-    console.log('Nodes to display:', nodes.map(n => `${n.char}(${n.freq})`))
-    console.log('Container size:', width, 'x', height)
+    console.log('🚀 === 完璧な初期ノード表示開始 ===')
+    console.log('📊 Nodes to display:', nodes.map(n => `${n.char}(${n.freq})`))
+    console.log('📐 Container size:', width, 'x', height)
     
-    const nodeRadius = 30
-    const minSpacing = 120  // 最小間隔を120pxに設定
-    const padding = 60
+    // まずSVGを完全にクリア
+    svg.innerHTML = ''
+    console.log('🧹 SVG cleared completely')
+    
+    const nodeRadius = 25  // 少し小さくして確実に分離
+    const minSpacing = 140  // より大きな間隔
+    const padding = 80      // より大きな余白
     
     // 頻度の昇順でソート（E, D, C, B, A）
     const sortedNodes = [...nodes].sort((a, b) => a.freq - b.freq)
-    console.log('Sorted nodes:', sortedNodes.map(n => `${n.char}(${n.freq})`))
+    console.log('📋 Sorted nodes:', sortedNodes.map(n => `${n.char}(${n.freq})`))
     
-    // 下部のY座標を計算
-    const baseY = height - padding - nodeRadius - 20
-    console.log('Base Y position:', baseY)
+    // 下部のY座標を計算（確実に見える位置）
+    const baseY = height - padding - 30
+    console.log('📍 Base Y position:', baseY)
     
     // 必要な全体幅を計算
     const totalSpacing = (sortedNodes.length - 1) * minSpacing
     const availableWidth = width - (padding * 2)
     
     let actualSpacing = minSpacing
-    let startX = padding + nodeRadius
+    let startX = padding + 30  // 確実に余白を取る
     
     if (totalSpacing > availableWidth) {
       // 収まらない場合は間隔を調整
       actualSpacing = availableWidth / (sortedNodes.length - 1)
-      console.log('Spacing adjusted to:', actualSpacing)
+      console.log('⚠️ Spacing adjusted to:', actualSpacing)
     } else {
       // 余裕がある場合は中央揃え
       const extraSpace = availableWidth - totalSpacing
-      startX = padding + nodeRadius + (extraSpace / 2)
-      console.log('Centered with extra space:', extraSpace)
+      startX = padding + (extraSpace / 2) + 30
+      console.log('✅ Centered with extra space:', extraSpace)
     }
     
-    console.log('Start X:', startX, 'Actual spacing:', actualSpacing)
+    console.log('🎯 Start X:', startX, 'Actual spacing:', actualSpacing)
     
-    // 各ノードを配置して描画
+    // 各ノードを確実に分離して描画
     sortedNodes.forEach((node, index) => {
       const x = startX + (index * actualSpacing)
       const y = baseY
       
-      console.log(`Drawing node ${node.char}(${node.freq}) at (${x.toFixed(1)}, ${y.toFixed(1)})`)
+      console.log(`🎨 Drawing node ${node.char}(${node.freq}) at EXACT position (${x.toFixed(1)}, ${y.toFixed(1)})`)
       
-      // 美しいノードを描画
-      this.drawBeautifulNodeWithScale(svg, node, x, y, false, false, 1)
+      // 確実に描画されるよう、シンプルなSVG要素を直接作成
+      this.drawSimpleNode(svg, node, x, y, nodeRadius)
     })
     
-    console.log('=== 正しい初期ノード表示完了 ===')
+    // 最終確認: SVGの内容をログ出力
+    console.log('📄 SVG children count:', svg.children.length)
+    console.log('✅ === 完璧な初期ノード表示完了 ===')
+  }
+
+  drawSimpleNode(svg, node, x, y, radius) {
+    console.log(`🎪 Creating simple node for ${node.char} at (${x}, ${y})`)
+    
+    // 影
+    const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+    shadow.setAttribute('cx', x + 2)
+    shadow.setAttribute('cy', y + 2)
+    shadow.setAttribute('r', radius)
+    shadow.setAttribute('fill', 'rgba(0, 0, 0, 0.2)')
+    svg.appendChild(shadow)
+    
+    // メインサークル
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+    circle.setAttribute('cx', x)
+    circle.setAttribute('cy', y)
+    circle.setAttribute('r', radius)
+    circle.setAttribute('fill', '#3b82f6')
+    circle.setAttribute('stroke', '#1e40af')
+    circle.setAttribute('stroke-width', '2')
+    svg.appendChild(circle)
+    
+    // 文字ラベル
+    const charText = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+    charText.setAttribute('x', x)
+    charText.setAttribute('y', y - 3)
+    charText.setAttribute('text-anchor', 'middle')
+    charText.setAttribute('dominant-baseline', 'middle')
+    charText.setAttribute('font-family', 'Arial, sans-serif')
+    charText.setAttribute('font-size', '14')
+    charText.setAttribute('font-weight', 'bold')
+    charText.setAttribute('fill', 'white')
+    charText.textContent = node.char
+    svg.appendChild(charText)
+    
+    // 頻度ラベル
+    const freqText = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+    freqText.setAttribute('x', x)
+    freqText.setAttribute('y', y + 8)
+    freqText.setAttribute('text-anchor', 'middle')
+    freqText.setAttribute('dominant-baseline', 'middle')
+    freqText.setAttribute('font-family', 'Arial, sans-serif')
+    freqText.setAttribute('font-size', '10')
+    freqText.setAttribute('font-weight', 'bold')
+    freqText.setAttribute('fill', 'white')
+    freqText.textContent = node.freq
+    svg.appendChild(freqText)
+    
+    console.log(`✅ Node ${node.char} created successfully`)
   }
 
   drawInitialNodes(svg, nodes, width, height) {
     // 古いメソッドは新しいメソッドにリダイレクト
+    console.log('🔄 Redirecting to correct method')
     this.drawInitialNodesCorrectly(svg, nodes, width, height)
   }
 
@@ -2431,8 +2501,9 @@ export class CompressionTool {
   }
 
   drawTreeNode(svg, node, x, y, radius, isHighlighted = false, isDashed = false) {
-    // 新しい美しいノード描画メソッドを使用
-    this.drawBeautifulNode(svg, node, x, y, isHighlighted, isDashed)
+    console.log(`⚠️ WARNING: Old drawTreeNode called for ${node.char} - this should not happen in initial step!`)
+    // 初期ステップではシンプルメソッドを使用
+    this.drawSimpleNode(svg, node, x, y, radius)
   }
 
   drawConnection(svg, x1, y1, x2, y2, isHighlighted = false) {
