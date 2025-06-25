@@ -1559,67 +1559,65 @@ export class CompressionTool {
   drawInitialNodes(svg, nodes, width, height) {
     if (!nodes || !Array.isArray(nodes) || nodes.length === 0) return
     
+    console.log('=== 初期ノード表示 ===')
+    console.log('Initial nodes:', nodes.map(n => n.char || n.freq))
+    
+    // 初期ノードを葉ノードとして扱い、新しいレイアウトアルゴリズムを使用
+    const positions = new Map()
     const nodeRadius = 30
-    const minSpacing = nodeRadius * 3  // ノード直径の1.5倍のスペーシング
-    const padding = nodeRadius + 20  // 左右の余白
-    const availableWidth = width - (padding * 2)
+    const minSpacing = 150  // 十分な間隔
+    const padding = 60
     
-    // 必要な幅を計算
-    const totalNodeWidth = nodes.length * (nodeRadius * 2)
-    const totalSpacingWidth = (nodes.length - 1) * minSpacing
-    const requiredWidth = totalNodeWidth + totalSpacingWidth
+    // 頻度の昇順でソート（E, D, C, B, A）
+    const sortedNodes = [...nodes].sort((a, b) => a.freq - b.freq)
     
-    let actualSpacing = minSpacing
-    let startX = padding + nodeRadius  // 左余白 + ノード半径
+    this.layoutLeafNodesHorizontally(sortedNodes, positions, width, height, minSpacing, padding)
     
-    // 利用可能幅内に収まるか確認
-    if (requiredWidth <= availableWidth) {
-      // 余裕がある場合は均等配置
-      const extraSpace = availableWidth - requiredWidth
-      actualSpacing = minSpacing + (extraSpace / (nodes.length - 1))
-      startX = padding + nodeRadius
-    } else {
-      // 収まらない場合は最小間隔で中央配置
-      startX = (width - (totalNodeWidth + (nodes.length - 1) * minSpacing)) / 2 + nodeRadius
-    }
+    // デバッグ情報を出力
+    this.debugNodePositions(positions)
+    this.detectNodeOverlaps(positions)
     
-    const y = height - padding  // 下部に配置（パディング考慮）
-    
-    nodes.forEach((node, index) => {
-      const x = startX + index * (nodeRadius * 2 + actualSpacing)
-      this.drawTreeNode(svg, node, x, y, nodeRadius, false)
+    // ノードを描画
+    positions.forEach((pos, node) => {
+      this.drawTreeNode(svg, node, pos.x, pos.y, nodeRadius, false)
     })
+    
+    console.log('=== 初期ノード表示完了 ===')
   }
 
   drawForestStage(svg, forestNodes, highlightPair, newParent, width, height) {
-    // 森の各木を描画（境界チェック付き）
+    console.log('=== 森の段階表示 ===')
+    console.log('Forest nodes:', forestNodes.map(tree => {
+      if (tree.char) return tree.char
+      return `(${tree.freq})`
+    }))
+    
+    // 各木を個別に正しいレイアウトで描画
     const nodeRadius = 30
-    const padding = nodeRadius + 20
-    const baseY = height - padding  // 下部マージンを考慮
+    const padding = 60
+    const minSpacing = 150  // 木間の最小間隔
     
-    // 各木の幅を計算して適切な間隔を確保
-    const treeWidths = forestNodes.map(tree => this.calculateTreeWidthForDisplay(tree))
-    const totalTreeWidth = treeWidths.reduce((sum, w) => sum + w, 0)
-    const availableWidth = width - (padding * 2)  // 左右パディング
-    const minSpacing = 80  // 最小間隔を増加
-    const totalMinSpacing = (forestNodes.length - 1) * minSpacing
+    // 各木の幅を計算
+    const treeWidths = forestNodes.map(tree => {
+      if (!tree.left && !tree.right) {
+        return nodeRadius * 2 + 20  // 葉ノードの幅
+      }
+      return this.calculateTreeWidth(tree) || 100
+    })
     
-    // 全体がはみ出す場合のスケール調整
+    const totalRequiredWidth = treeWidths.reduce((sum, w) => sum + w, 0) + (forestNodes.length - 1) * minSpacing
+    const availableWidth = width - (padding * 2)
+    
+    let actualSpacing = minSpacing
     let scale = 1
-    if (totalTreeWidth + totalMinSpacing > availableWidth) {
-      scale = availableWidth / (totalTreeWidth + totalMinSpacing)
-      scale = Math.max(scale, 0.6)  // 最小スケール制限
+    
+    if (totalRequiredWidth > availableWidth) {
+      scale = availableWidth / totalRequiredWidth
+      scale = Math.max(scale, 0.7)  // 最小スケール
+      actualSpacing = minSpacing * scale
     }
     
-    // 適応的スペーシングを計算
-    let spacing = minSpacing * scale
-    if (totalTreeWidth * scale + totalMinSpacing * scale <= availableWidth) {
-      // 余裕がある場合は均等配置
-      spacing = Math.max(minSpacing * scale, 
-        (availableWidth - totalTreeWidth * scale) / (forestNodes.length + 1))
-    }
-    
-    let currentX = padding + (treeWidths[0] * scale) / 2  // 左パディング + 最初の木の半分
+    let currentX = padding
     
     forestNodes.forEach((tree, index) => {
       const isHighlighted = highlightPair && (
@@ -1627,19 +1625,15 @@ export class CompressionTool {
         this.isSameNode(tree, highlightPair.right)
       )
       
-      // 木の高さを計算して上部に配置（スケール考慮）
-      const treeDepth = this.getTreeDepth(tree)
-      const levelHeight = 90 * scale
-      const treeTopY = Math.max(padding, baseY - (treeDepth * levelHeight))
-      
-      // 境界チェック付きで描画
-      this.drawSubTreeFromTopWithScale(svg, tree, currentX, treeTopY, isHighlighted, scale)
+      // 各木を個別に描画
+      const treeX = currentX + (treeWidths[index] * scale) / 2
+      this.drawSubTreeFromTopWithScale(svg, tree, treeX, padding + 40, isHighlighted, scale)
       
       // 次の木の位置を計算
-      if (index < forestNodes.length - 1) {
-        currentX += (treeWidths[index] * scale) / 2 + spacing + (treeWidths[index + 1] * scale) / 2
-      }
+      currentX += (treeWidths[index] * scale) + actualSpacing
     })
+    
+    console.log('=== 森の段階表示完了 ===')
     
     // 新しい親ノードを点線で表示（結合予定）
     if (newParent && highlightPair) {
@@ -1723,8 +1717,17 @@ export class CompressionTool {
     const containerWidth = parseFloat(svg.getAttribute('width')) || svgRect.width || 800
     const containerHeight = parseFloat(svg.getAttribute('height')) || svgRect.height || 500
     
-    // 新しいレベルベース配置アルゴリズムを使用
-    const nodePositions = this.calculateLevelBasedPositions(tree, containerWidth, containerHeight, scale)
+    console.log('=== ハフマン木描画開始 ===')
+    console.log('Container dimensions:', containerWidth, 'x', containerHeight)
+    
+    // 完全に新しい正しいレイアウトアルゴリズムを使用
+    const nodePositions = this.calculateCorrectTreeLayout(tree, containerWidth, containerHeight, scale)
+    
+    // デバッグ: 座標を出力
+    this.debugNodePositions(nodePositions)
+    
+    // 重なり検出
+    this.detectNodeOverlaps(nodePositions)
     
     // 全ノードを描画
     this.drawBeautifulNodesWithScale(svg, nodePositions, isHighlighted, scale)
@@ -1733,113 +1736,188 @@ export class CompressionTool {
     this.drawBeautifulConnectionsWithScale(svg, nodePositions, isHighlighted, scale)
   }
 
-  calculateLevelBasedPositions(tree, containerWidth, containerHeight, scale = 1) {
+  calculateCorrectTreeLayout(tree, containerWidth, containerHeight, scale = 1) {
     if (!tree) return new Map()
+    
+    console.log('=== 正しいレイアウト計算開始 ===')
     
     const positions = new Map()
     const nodeRadius = 30 * scale
-    const padding = 60 * scale  // 十分な余白
+    const minSpacing = 150 * scale  // 最小間隔150px
+    const padding = 60 * scale
     
-    // 1. 木を各レベルに分解
-    const levels = this.getTreeLevels(tree)
-    const maxDepth = levels.length
+    // 1. 葉ノードを収集
+    const leafNodes = this.collectLeafNodes(tree)
+    console.log('Leaf nodes found:', leafNodes.map(n => n.char || n.freq))
     
-    // 2. 領域全体を均等に分割
-    const availableHeight = containerHeight - (padding * 2)
-    const availableWidth = containerWidth - (padding * 2)
-    const levelHeight = maxDepth > 1 ? availableHeight / (maxDepth - 1) : 0
+    // 2. 葉ノードを下部に横一列配置
+    this.layoutLeafNodesHorizontally(leafNodes, positions, containerWidth, containerHeight, minSpacing, padding)
     
-    // 3. 各レベルでノードを配置
-    levels.forEach((levelNodes, levelIndex) => {
-      const y = padding + (levelIndex * levelHeight)
-      const nodeCount = levelNodes.length
-      
-      if (nodeCount === 1) {
-        // 単一ノードは中央に配置
-        const x = containerWidth / 2
-        positions.set(levelNodes[0], { x, y, level: levelIndex })
-      } else {
-        // 複数ノードは均等分散
-        const nodeSpacing = availableWidth / (nodeCount + 1)
-        levelNodes.forEach((node, nodeIndex) => {
-          const x = padding + nodeSpacing * (nodeIndex + 1)
-          positions.set(node, { x, y, level: levelIndex })
-        })
-      }
-    })
+    // 3. 内部ノードを子ノードの中央上部に配置
+    this.layoutInternalNodes(tree, positions, containerHeight, padding)
     
-    // 4. 親ノードの位置を子ノードの中央に調整
-    this.adjustParentPositions(tree, positions)
-    
+    console.log('=== レイアウト計算完了 ===')
     return positions
   }
 
-  getTreeLevels(tree) {
+  collectLeafNodes(tree) {
     if (!tree) return []
     
-    const levels = []
-    const queue = [{ node: tree, level: 0 }]
+    const leafNodes = []
     
-    while (queue.length > 0) {
-      const { node, level } = queue.shift()
-      
-      // レベル配列を初期化
-      if (!levels[level]) {
-        levels[level] = []
-      }
-      
-      levels[level].push(node)
-      
-      // 子ノードをキューに追加
-      if (node.left) {
-        queue.push({ node: node.left, level: level + 1 })
-      }
-      if (node.right) {
-        queue.push({ node: node.right, level: level + 1 })
-      }
-    }
-    
-    return levels
-  }
-
-  adjustParentPositions(tree, positions) {
-    // 後順走査で親ノードの位置を調整
-    const adjustPosition = (node) => {
+    const traverse = (node) => {
       if (!node) return
       
-      // 子ノードを先に処理
-      if (node.left) adjustPosition(node.left)
-      if (node.right) adjustPosition(node.right)
+      // 葉ノード（子ノードがない）の場合
+      if (!node.left && !node.right) {
+        leafNodes.push(node)
+        return
+      }
       
-      // 子ノードがある場合、その中央に親ノードを配置
-      if (node.left || node.right) {
-        const parentPos = positions.get(node)
-        if (parentPos) {
-          let leftX = parentPos.x, rightX = parentPos.x
-          
-          if (node.left) {
-            const leftPos = positions.get(node.left)
-            if (leftPos) leftX = leftPos.x
-          }
-          
-          if (node.right) {
-            const rightPos = positions.get(node.right)
-            if (rightPos) rightX = rightPos.x
-          }
-          
-          // 子ノードの中央に配置
-          if (node.left && node.right) {
-            parentPos.x = (leftX + rightX) / 2
-          } else if (node.left) {
-            parentPos.x = leftX
-          } else if (node.right) {
-            parentPos.x = rightX
-          }
+      // 子ノードを再帰的に探索
+      if (node.left) traverse(node.left)
+      if (node.right) traverse(node.right)
+    }
+    
+    traverse(tree)
+    
+    // 频度の昇順でソート（E, D, C, B, Aの順）
+    leafNodes.sort((a, b) => a.freq - b.freq)
+    
+    return leafNodes
+  }
+
+  layoutLeafNodesHorizontally(leafNodes, positions, containerWidth, containerHeight, minSpacing, padding) {
+    if (leafNodes.length === 0) return
+    
+    console.log('=== 葉ノードの横一列配置 ===')
+    
+    // 下部の固定位置
+    const baseY = containerHeight - padding - 40  // 下から余白を取って固定
+    
+    // 必要な幅を計算
+    const totalRequiredWidth = (leafNodes.length - 1) * minSpacing
+    const availableWidth = containerWidth - (padding * 2)
+    
+    let actualSpacing = minSpacing
+    let startX = padding
+    
+    if (totalRequiredWidth <= availableWidth) {
+      // 余裕がある場合は中央揃えで均等配置
+      const extraSpace = availableWidth - totalRequiredWidth
+      startX = padding + (extraSpace / 2)
+    } else {
+      // 収まらない場合は間隔を調整
+      actualSpacing = availableWidth / (leafNodes.length - 1)
+      startX = padding
+    }
+    
+    leafNodes.forEach((node, index) => {
+      const x = startX + (index * actualSpacing)
+      const y = baseY
+      
+      positions.set(node, { x, y, level: 'leaf' })
+      console.log(`葉ノード ${node.char}(${node.freq}): (${x.toFixed(1)}, ${y.toFixed(1)})`)
+    })
+    
+    console.log('=== 葉ノード配置完了 ===')
+  }
+
+  layoutInternalNodes(tree, positions, containerHeight, padding) {
+    if (!tree) return
+    
+    console.log('=== 内部ノードの配置 ===')
+    
+    // 最大深度を計算
+    const maxDepth = this.getTreeDepth(tree)
+    const levelHeight = 80  // レベル間の高さ
+    
+    const layoutNode = (node, level = 0) => {
+      if (!node) return
+      
+      // 葉ノードは既に配置済み
+      if (!node.left && !node.right) {
+        return
+      }
+      
+      // 子ノードを先に配置
+      if (node.left) layoutNode(node.left, level + 1)
+      if (node.right) layoutNode(node.right, level + 1)
+      
+      // 子ノードの位置から親ノードの位置を計算
+      const leftPos = node.left ? positions.get(node.left) : null
+      const rightPos = node.right ? positions.get(node.right) : null
+      
+      let x, y
+      
+      if (leftPos && rightPos) {
+        // 左右の子ノードの中央
+        x = (leftPos.x + rightPos.x) / 2
+        y = Math.min(leftPos.y, rightPos.y) - levelHeight
+      } else if (leftPos) {
+        // 左の子ノードの上
+        x = leftPos.x
+        y = leftPos.y - levelHeight
+      } else if (rightPos) {
+        // 右の子ノードの上
+        x = rightPos.x
+        y = rightPos.y - levelHeight
+      }
+      
+      // 上端の制限をチェック
+      y = Math.max(y, padding + 40)
+      
+      positions.set(node, { x, y, level: maxDepth - level - 1 })
+      
+      const nodeLabel = node.char || `(${node.freq})`
+      console.log(`内部ノード ${nodeLabel}: (${x.toFixed(1)}, ${y.toFixed(1)}) level=${maxDepth - level - 1}`)
+    }
+    
+    layoutNode(tree)
+    console.log('=== 内部ノード配置完了 ===')
+  }
+
+  debugNodePositions(positions) {
+    console.log('=== ノード座標デバッグ ===')
+    positions.forEach((pos, node) => {
+      const label = node.char || `(${node.freq})`
+      console.log(`${label}: x=${pos.x.toFixed(1)}, y=${pos.y.toFixed(1)}, level=${pos.level}`)
+    })
+    console.log('=== デバッグ完了 ===')
+  }
+
+  detectNodeOverlaps(positions) {
+    console.log('=== 重なり検出 ===')
+    const nodeRadius = 30
+    const minDistance = nodeRadius * 2 + 10  // 最小距離
+    
+    const posArray = Array.from(positions.entries())
+    let overlapCount = 0
+    
+    for (let i = 0; i < posArray.length; i++) {
+      for (let j = i + 1; j < posArray.length; j++) {
+        const [node1, pos1] = posArray[i]
+        const [node2, pos2] = posArray[j]
+        
+        const distance = Math.sqrt(
+          Math.pow(pos1.x - pos2.x, 2) + Math.pow(pos1.y - pos2.y, 2)
+        )
+        
+        if (distance < minDistance) {
+          const label1 = node1.char || `(${node1.freq})`
+          const label2 = node2.char || `(${node2.freq})`
+          console.warn(`重なり検出: ${label1} と ${label2} - 距離: ${distance.toFixed(1)}px (最小: ${minDistance}px)`)
+          overlapCount++
         }
       }
     }
     
-    adjustPosition(tree)
+    if (overlapCount === 0) {
+      console.log('✅ 重なりなし - 正しい配置です')
+    } else {
+      console.error(`⚠️ ${overlapCount}個の重なりを検出しました`)
+    }
+    console.log('=== 重なり検出完了 ===')
   }
 
   calculateBeautifulNodePositionsWithScale(tree, rootX, rootY, levelHeight, containerWidth, containerHeight, scale) {
@@ -2110,11 +2188,12 @@ export class CompressionTool {
   }
 
   drawCompleteTree(svg, tree, width, height) {
-    const centerX = width / 2
-    const baseY = height - 50  // 構築過程と同じベースライン
-    const treeDepth = this.getTreeDepth(tree)
-    const topY = baseY - (treeDepth * 80)  // 構築過程と同じ計算方法（間隔調整）
-    this.drawSubTreeFromTop(svg, tree, centerX, topY, false)
+    console.log('=== 完成したハフマン木を表示 ===')
+    
+    // 新しい正しいレイアウトアルゴリズムで描画
+    this.drawSubTreeFromTopWithScale(svg, tree, width / 2, 0, false, 1)
+    
+    console.log('=== 完成した木の表示完了 ===')
   }
 
   drawBeautifulNodeWithScale(svg, node, x, y, isHighlighted = false, isDashed = false, scale = 1) {
