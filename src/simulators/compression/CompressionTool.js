@@ -1492,7 +1492,9 @@ export class CompressionTool {
       this.drawForestStage(svg, stepData.forestNodes, stepData.highlightPair, stepData.newParent, dimensions.width, dimensions.height)
     } else if (stepData.nodes) {
       // 初期ステップ：個別ノードを表示
-      this.drawInitialNodes(svg, stepData.nodes, dimensions.width, dimensions.height)
+      console.log('=== 初期ステップでノードを表示 ===')
+      console.log('stepData.nodes:', stepData.nodes.map(n => n.char + '(' + n.freq + ')'))
+      this.drawInitialNodesCorrectly(svg, stepData.nodes, dimensions.width, dimensions.height)
     }
   }
 
@@ -1556,33 +1558,65 @@ export class CompressionTool {
     return Math.max(leftWidth + rightWidth + minSpacing, 80)
   }
 
-  drawInitialNodes(svg, nodes, width, height) {
-    if (!nodes || !Array.isArray(nodes) || nodes.length === 0) return
+  drawInitialNodesCorrectly(svg, nodes, width, height) {
+    if (!nodes || !Array.isArray(nodes) || nodes.length === 0) {
+      console.error('No nodes to display!')
+      return
+    }
     
-    console.log('=== 初期ノード表示 ===')
-    console.log('Initial nodes:', nodes.map(n => n.char || n.freq))
+    console.log('=== 正しい初期ノード表示開始 ===')
+    console.log('Nodes to display:', nodes.map(n => `${n.char}(${n.freq})`))
+    console.log('Container size:', width, 'x', height)
     
-    // 初期ノードを葉ノードとして扱い、新しいレイアウトアルゴリズムを使用
-    const positions = new Map()
     const nodeRadius = 30
-    const minSpacing = 150  // 十分な間隔
+    const minSpacing = 120  // 最小間隔を120pxに設定
     const padding = 60
     
     // 頻度の昇順でソート（E, D, C, B, A）
     const sortedNodes = [...nodes].sort((a, b) => a.freq - b.freq)
+    console.log('Sorted nodes:', sortedNodes.map(n => `${n.char}(${n.freq})`))
     
-    this.layoutLeafNodesHorizontally(sortedNodes, positions, width, height, minSpacing, padding)
+    // 下部のY座標を計算
+    const baseY = height - padding - nodeRadius - 20
+    console.log('Base Y position:', baseY)
     
-    // デバッグ情報を出力
-    this.debugNodePositions(positions)
-    this.detectNodeOverlaps(positions)
+    // 必要な全体幅を計算
+    const totalSpacing = (sortedNodes.length - 1) * minSpacing
+    const availableWidth = width - (padding * 2)
     
-    // ノードを描画
-    positions.forEach((pos, node) => {
-      this.drawTreeNode(svg, node, pos.x, pos.y, nodeRadius, false)
+    let actualSpacing = minSpacing
+    let startX = padding + nodeRadius
+    
+    if (totalSpacing > availableWidth) {
+      // 収まらない場合は間隔を調整
+      actualSpacing = availableWidth / (sortedNodes.length - 1)
+      console.log('Spacing adjusted to:', actualSpacing)
+    } else {
+      // 余裕がある場合は中央揃え
+      const extraSpace = availableWidth - totalSpacing
+      startX = padding + nodeRadius + (extraSpace / 2)
+      console.log('Centered with extra space:', extraSpace)
+    }
+    
+    console.log('Start X:', startX, 'Actual spacing:', actualSpacing)
+    
+    // 各ノードを配置して描画
+    sortedNodes.forEach((node, index) => {
+      const x = startX + (index * actualSpacing)
+      const y = baseY
+      
+      console.log(`Drawing node ${node.char}(${node.freq}) at (${x.toFixed(1)}, ${y.toFixed(1)})`)
+      
+      // 美しいノードを描画
+      this.drawBeautifulNodeWithScale(svg, node, x, y, false, false, 1)
     })
     
-    console.log('=== 初期ノード表示完了 ===')
+    console.log('=== 正しい初期ノード表示完了 ===')
+  }
+
+  drawInitialNodes(svg, nodes, width, height) {
+    // 古いメソッドは新しいメソッドにリダイレクト
+    this.drawInitialNodesCorrectly(svg, nodes, width, height)
   }
 
   drawForestStage(svg, forestNodes, highlightPair, newParent, width, height) {
