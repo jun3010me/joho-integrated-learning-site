@@ -1167,8 +1167,20 @@ export class LogicLearning {
     console.log('🔍 Expression type:', typeof expression)
     console.log('🔍 Expression length:', expression.length)
     
-    const matches = expression.match(/[A-D]/g)
-    console.log('🔍 Raw matches:', matches)
+    // 🚨 修正: 演算子を先に除去してから変数を抽出
+    let cleanExpression = expression.toUpperCase()
+    
+    // 演算子を一時的に置換
+    cleanExpression = cleanExpression.replace(/\bAND\b/g, ' ___AND___ ')
+    cleanExpression = cleanExpression.replace(/\bOR\b/g, ' ___OR___ ')
+    cleanExpression = cleanExpression.replace(/\bXOR\b/g, ' ___XOR___ ')
+    cleanExpression = cleanExpression.replace(/\bNOT\b/g, ' ___NOT___ ')
+    
+    console.log('🔍 After operator replacement:', cleanExpression)
+    
+    // 変数のみを抽出（単語境界を使用）
+    const matches = cleanExpression.match(/\b[A-D]\b/g)
+    console.log('🔍 Raw matches after cleaning:', matches)
     
     const result = [...new Set(matches || [])].sort()
     console.log('🔍 Final extracted variables:', result)
