@@ -311,18 +311,21 @@ export class LogicLearning {
     Object.entries(values).forEach(([v, val]) => {
         expr = expr.replace(new RegExp(`\b${v}\b`, 'g'), val.toString());
     });
-    
+
+    // Replace logic operators with JS operators
     expr = expr.replace(/\bAND\b/g, '&&')
                .replace(/\bOR\b/g, '||')
                .replace(/\bNOT\b/g, '!')
                .replace(/\bXOR\b/g, '^');
 
-    // Allow bitwise XOR (^) operator in the expression
-    if (!/^[0-1\s&|!^()]+$/.test(expr)) {
+    // Validate the expression to only contain allowed characters
+    if (!/^[01\s&|!^()]+$/.test(expr)) {
+        console.error(`Validation failed for expression: "${expr}"`);
         throw new Error('Invalid characters in expression');
     }
 
     try {
+        // Use new Function for safer evaluation
         return new Function(`return !!(${expr});`)() ? 1 : 0;
     } catch (e) {
         console.error(`Error evaluating expression: "${expression}" -> "${expr}"`, e);
