@@ -1492,22 +1492,30 @@ export class CompressionTool {
       container.style.overflow = 'auto'
     }
     
-    if (stepData.tree) {
+    // 初期ステップの特別処理: forestNodesが全て葉ノードの場合
+    const isInitialStep = stepData.forestNodes && stepData.forestNodes.length > 1 && 
+                          stepData.forestNodes.every(node => !node.left && !node.right)
+    
+    if (isInitialStep) {
+      // 初期ステップ: 全葉ノードを横一列に表示
+      console.log('🚀 === CRITICAL: 初期ステップで全ノードを表示 ===')
+      console.log('📊 Initial forestNodes:', stepData.forestNodes.map(n => n.char + '(' + n.freq + ')'))
+      console.log('📐 dimensions:', dimensions)
+      
+      this.drawInitialNodesCorrectly(svg, stepData.forestNodes, dimensions.width, dimensions.height)
+      
+      console.log('✅ 初期ステップ完了')
+    } else if (stepData.tree) {
       // 最終ステップ：完成した木を表示
       this.drawCompleteTree(svg, stepData.tree, dimensions.width, dimensions.height)
     } else if (stepData.forestNodes) {
       // 中間ステップ：森の状態を表示
       this.drawForestStage(svg, stepData.forestNodes, stepData.highlightPair, stepData.newParent, dimensions.width, dimensions.height)
     } else if (stepData.nodes) {
-      // 初期ステップ：個別ノードを表示
-      console.log('🚀 === CRITICAL: 初期ステップでノードを表示 ===')
+      // フォールバック: 個別ノードを表示
+      console.log('🚀 === FALLBACK: 個別ノードを表示 ===')
       console.log('📊 stepData.nodes:', stepData.nodes.map(n => n.char + '(' + n.freq + ')'))
-      console.log('📐 dimensions:', dimensions)
-      
-      // 確実に初期ノード描画だけを実行
       this.drawInitialNodesCorrectly(svg, stepData.nodes, dimensions.width, dimensions.height)
-      
-      console.log('✅ 初期ステップ完了')
     }
   }
 
