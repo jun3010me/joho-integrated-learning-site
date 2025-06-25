@@ -414,6 +414,10 @@ export class LogicLearning {
     const variableCount = parseInt(document.getElementById('variable-count')?.value || '2')
     const expression = this.currentExpression.trim()
     
+    console.log('🔍 DEBUG: generateTruthTableAndCircuit called')
+    console.log('📝 Expression:', expression)
+    console.log('🔢 Variable Count:', variableCount)
+    
     if (!expression) {
       alert('論理式をボタンで入力してください')
       return
@@ -422,11 +426,12 @@ export class LogicLearning {
     try {
       // 真理値表を生成
       const table = this.createTruthTable(variableCount, expression)
-      this.displayTruthTable(table, variableCount)
+      this.displayTruthTable(table, table.variables.length)
       
-      // 回路図を生成
+      // 回路図を生成（デバッグ付き）
       this.displayCircuitDiagram(expression)
     } catch (error) {
+      console.error('❌ Error in generateTruthTableAndCircuit:', error)
       document.getElementById('truth-table-display').innerHTML = `
         <div class="text-red-600 text-center">
           <div class="text-lg mb-2">⚠️ エラー</div>
@@ -443,17 +448,25 @@ export class LogicLearning {
   }
 
   createTruthTable(variableCount, expression) {
-    const variables = ['A', 'B', 'C', 'D'].slice(0, variableCount)
-    const rows = Math.pow(2, variableCount)
+    // 実際に使用される変数のみを抽出
+    const actualVariables = this.extractVariables(expression)
+    console.log('🔍 DEBUG createTruthTable:')
+    console.log('  Expression:', expression)
+    console.log('  Variable count from UI:', variableCount) 
+    console.log('  Actual variables used:', actualVariables)
+    
+    // 実際の変数数を使用
+    const variables = actualVariables
+    const rows = Math.pow(2, variables.length)
     const table = []
 
     for (let i = 0; i < rows; i++) {
       const row = {}
       
       // 各変数の値を設定
-      for (let j = 0; j < variableCount; j++) {
+      for (let j = 0; j < variables.length; j++) {
         const variable = variables[j]
-        row[variable] = (i >> (variableCount - 1 - j)) & 1
+        row[variable] = (i >> (variables.length - 1 - j)) & 1
       }
       
       // 論理式を評価
@@ -502,6 +515,9 @@ export class LogicLearning {
 
   displayTruthTable(data, variableCount) {
     const { variables, table } = data
+    console.log('🔍 DEBUG displayTruthTable:')
+    console.log('  Variables to display:', variables)
+    console.log('  Table data:', table)
     
     let html = `
       <div class="overflow-x-auto">
@@ -560,10 +576,12 @@ export class LogicLearning {
   }
 
   displayCircuitDiagram(expression) {
+    console.log('🔍 DEBUG: displayCircuitDiagram called with:', expression)
     const circuitDisplay = document.getElementById('circuit-display')
     
     // 論理式を解析してゲート構成を取得
     const circuit = this.parseLogicExpression(expression)
+    console.log('🏗️ Final circuit object:', circuit)
     
     let circuitHtml = `
       <div class="space-y-4">
@@ -605,6 +623,8 @@ export class LogicLearning {
   }
 
   parseLogicExpression(expression) {
+    console.log('🔍 DEBUG: parseLogicExpression called with:', expression)
+    
     // 論理式を解析して回路構造を構築
     const variables = this.extractVariables(expression)
     const gates = []
@@ -613,10 +633,86 @@ export class LogicLearning {
     let normalizedExpr = expression.toUpperCase().trim()
     let gateId = 0
     
+    console.log('📝 Normalized expression:', normalizedExpr)
+    console.log('🔤 Extracted variables:', variables)
+    
     // 括弧を含む複雑な式への対応
     if (normalizedExpr.includes('(') && normalizedExpr.includes(')')) {
-      // 括弧付きの式を処理
-      if (normalizedExpr.match(/\(.*\)\s+AND\s+/)) {
+      console.log('🔍 Processing expression with parentheses')
+      
+      // NOT (A AND B) のパターン
+      if (normalizedExpr.startsWith('NOT (') && normalizedExpr.endsWith(')')) {
+        console.log('🔍 Detected NOT (expression) pattern')
+        const innerExpr = normalizedExpr.substring(5, normalizedExpr.length - 1).trim()
+        console.log('🔍 Inner expression:', innerExpr)
+        
+        if (innerExpr.includes(' AND ')) {
+          const andParts = innerExpr.split(' AND ').map(part => part.trim())
+          console.log('🔍 AND parts:', andParts)
+          
+          // ANDゲートを追加
+          const andGate = {
+            id: `gate_${gateId++}`,
+            type: 'AND',
+            inputs: andParts,
+            x: 200,
+            y: 130,
+            output: `and_out_1`
+          }
+          gates.push(andGate)
+          
+          // NOTゲートを追加
+          const notGate = {
+            id: `gate_${gateId++}`,
+            type: 'NOT',
+            inputs: [andGate.output],
+            x: 350,
+            y: 150,
+            output: 'Y'
+          }
+          gates.push(notGate)
+          
+          // 接続を定義
+          connections.push({
+            from: andGate.id,
+            to: notGate.id,
+            fromOutput: andGate.output,
+            toInput: 0
+          })
+        } else if (innerExpr.includes(' OR ')) {
+          const orParts = innerExpr.split(' OR ').map(part => part.trim())
+          
+          // ORゲートを追加
+          const orGate = {
+            id: `gate_${gateId++}`,
+            type: 'OR',
+            inputs: orParts,
+            x: 200,
+            y: 130,
+            output: `or_out_1`
+          }
+          gates.push(orGate)
+          
+          // NOTゲートを追加
+          const notGate = {
+            id: `gate_${gateId++}`,
+            type: 'NOT',
+            inputs: [orGate.output],
+            x: 350,
+            y: 150,
+            output: 'Y'
+          }
+          gates.push(notGate)
+          
+          // 接続を定義
+          connections.push({
+            from: orGate.id,
+            to: notGate.id,
+            fromOutput: orGate.output,
+            toInput: 0
+          })
+        }
+      } else if (normalizedExpr.match(/\(.*\)\s+AND\s+/)) {
         // (A OR B) AND C のパターン
         const match = normalizedExpr.match(/\((.*?)\)\s+AND\s+(.*)/)
         if (match) {
@@ -800,6 +896,11 @@ export class LogicLearning {
       })
     }
     
+    console.log('🏗️ Generated circuit structure:')
+    console.log('  Variables:', variables)
+    console.log('  Gates:', gates)
+    console.log('  Connections:', connections)
+    
     return {
       variables,
       gates,
@@ -845,8 +946,12 @@ export class LogicLearning {
   }
 
   drawLogicCircuit(circuit) {
+    console.log('🎨 DEBUG: drawLogicCircuit called with:', circuit)
     const canvas = document.getElementById('circuit-canvas')
-    if (!canvas) return
+    if (!canvas) {
+      console.error('❌ Canvas not found!')
+      return
+    }
     
     const ctx = canvas.getContext('2d')
     ctx.clearRect(0, 0, canvas.width, canvas.height)
