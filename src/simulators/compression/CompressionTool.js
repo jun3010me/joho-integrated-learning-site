@@ -1646,6 +1646,18 @@ export class CompressionTool {
     console.log('✅ === 緊急修正完了 ===')
   }
 
+  getNodeColorByChar(char) {
+    // 文字ごとの統一された色マッピング
+    const colorMap = {
+      'E': '#ef4444', // 赤
+      'D': '#f97316', // オレンジ
+      'C': '#eab308', // 黄色
+      'B': '#22c55e', // 緑
+      'A': '#3b82f6'  // 青
+    }
+    return colorMap[char] || '#6b7280' // デフォルトはグレー
+  }
+
   drawForcePositionedNode(svg, node, x, y, radius, index) {
     console.log(`📍 強制位置: ${node.char} at (${x}, ${y}) - index ${index}`)
     
@@ -1661,14 +1673,14 @@ export class CompressionTool {
     shadow.setAttribute('fill', 'rgba(0, 0, 0, 0.3)')
     svg.appendChild(shadow)
     
-    // メインサークル (各ノードに異なる色)
-    const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6'] // E, D, C, B, A
+    // メインサークル (文字ごとの統一色)
+    const nodeColor = this.getNodeColorByChar(node.char)
     const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
     circle.setAttribute('id', `${baseId}-circle`)
     circle.setAttribute('cx', x)
     circle.setAttribute('cy', y)
     circle.setAttribute('r', radius)
-    circle.setAttribute('fill', colors[index % colors.length])
+    circle.setAttribute('fill', nodeColor)
     circle.setAttribute('stroke', '#000000')
     circle.setAttribute('stroke-width', '3')
     svg.appendChild(circle)
@@ -2352,109 +2364,40 @@ export class CompressionTool {
   drawBeautifulNodeWithScale(svg, node, x, y, isHighlighted = false, isDashed = false, scale = 1) {
     const radius = 30 * scale
     
-    // グラデーション定義を作成
-    const defs = svg.querySelector('defs') || svg.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'defs'))
-    
-    // 葉ノード用グラデーション
-    if (!defs.querySelector('#leafGradient')) {
-      const leafGradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient')
-      leafGradient.setAttribute('id', 'leafGradient')
-      leafGradient.setAttribute('x1', '0%')
-      leafGradient.setAttribute('y1', '0%')
-      leafGradient.setAttribute('x2', '100%')
-      leafGradient.setAttribute('y2', '100%')
-      
-      const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop')
-      stop1.setAttribute('offset', '0%')
-      stop1.setAttribute('stop-color', '#60a5fa')
-      
-      const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop')
-      stop2.setAttribute('offset', '100%')
-      stop2.setAttribute('stop-color', '#3b82f6')
-      
-      leafGradient.appendChild(stop1)
-      leafGradient.appendChild(stop2)
-      defs.appendChild(leafGradient)
-    }
-    
-    // 内部ノード用グラデーション
-    if (!defs.querySelector('#internalGradient')) {
-      const internalGradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient')
-      internalGradient.setAttribute('id', 'internalGradient')
-      internalGradient.setAttribute('x1', '0%')
-      internalGradient.setAttribute('y1', '0%')
-      internalGradient.setAttribute('x2', '100%')
-      internalGradient.setAttribute('y2', '100%')
-      
-      const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop')
-      stop1.setAttribute('offset', '0%')
-      stop1.setAttribute('stop-color', '#f3f4f6')
-      
-      const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop')
-      stop2.setAttribute('offset', '100%')
-      stop2.setAttribute('stop-color', '#d1d5db')
-      
-      internalGradient.appendChild(stop1)
-      internalGradient.appendChild(stop2)
-      defs.appendChild(internalGradient)
-    }
-    
-    // ハイライト用グラデーション
-    if (!defs.querySelector('#highlightGradient')) {
-      const highlightGradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient')
-      highlightGradient.setAttribute('id', 'highlightGradient')
-      highlightGradient.setAttribute('x1', '0%')
-      highlightGradient.setAttribute('y1', '0%')
-      highlightGradient.setAttribute('x2', '100%')
-      highlightGradient.setAttribute('y2', '100%')
-      
-      const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop')
-      stop1.setAttribute('offset', '0%')
-      stop1.setAttribute('stop-color', '#fca5a5')
-      
-      const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop')
-      stop2.setAttribute('offset', '100%')
-      stop2.setAttribute('stop-color', '#ef4444')
-      
-      highlightGradient.appendChild(stop1)
-      highlightGradient.appendChild(stop2)
-      defs.appendChild(highlightGradient)
-    }
-    
-    // 影効果
+    // 影
     const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
-    shadow.setAttribute('cx', x + 3)
-    shadow.setAttribute('cy', y + 3)
+    shadow.setAttribute('cx', x + 2)
+    shadow.setAttribute('cy', y + 2)
     shadow.setAttribute('r', radius)
-    shadow.setAttribute('fill', 'rgba(0, 0, 0, 0.2)')
-    shadow.setAttribute('opacity', '0.6')
+    shadow.setAttribute('fill', 'rgba(0, 0, 0, 0.3)')
     svg.appendChild(shadow)
     
-    // メインノード円
+    // メインサークル (統一された色)
     const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
     circle.setAttribute('cx', x)
     circle.setAttribute('cy', y)
     circle.setAttribute('r', radius)
     
     if (isHighlighted) {
-      circle.setAttribute('fill', 'url(#highlightGradient)')
+      circle.setAttribute('fill', '#fbbf24') // ハイライト時は黄色
+      circle.setAttribute('stroke', '#dc2626')
+      circle.setAttribute('stroke-width', '4')
     } else if (node.char) {
-      circle.setAttribute('fill', 'url(#leafGradient)')
+      // 葉ノードは統一された色
+      circle.setAttribute('fill', this.getNodeColorByChar(node.char))
+      circle.setAttribute('stroke', '#000000')
+      circle.setAttribute('stroke-width', '2')
     } else {
-      circle.setAttribute('fill', 'url(#internalGradient)')
+      // 内部ノードはグレー
+      circle.setAttribute('fill', '#9ca3af')
+      circle.setAttribute('stroke', '#374151')
+      circle.setAttribute('stroke-width', '2')
     }
-    
-    circle.setAttribute('stroke', isHighlighted ? '#dc2626' : '#6b7280')
-    circle.setAttribute('stroke-width', isHighlighted ? '3' : '2')
-    circle.setAttribute('filter', 'url(#dropShadow)')
     
     if (isDashed) {
       circle.setAttribute('stroke-dasharray', '8,4')
       circle.setAttribute('opacity', '0.8')
     }
-    
-    // ホバー効果のクラスを追加
-    circle.setAttribute('class', 'huffman-node-beautiful')
     
     svg.appendChild(circle)
     
@@ -2697,11 +2640,21 @@ export class CompressionTool {
     
     const currentStep = this.treeSteps[this.currentTreeStep]
     const svg = document.getElementById('huffman-tree')
-    const stepText = document.getElementById('tree-step-text')
+    
+    // 正しい要素IDでステップ表示を更新
+    const stepIndicator = document.getElementById('tree-step-indicator')
+    const stepText = document.getElementById('tree-step-text') // フォールバック
     
     console.log('Current step:', this.currentTreeStep, 'Total steps:', this.treeSteps.length)
     console.log('Current step data:', currentStep)
     
+    // ステップ表示を更新　(メインのステップインジケーター)
+    if (stepIndicator) {
+      stepIndicator.textContent = `ステップ ${this.currentTreeStep + 1}/${this.treeSteps.length}: ${currentStep.description}`
+      console.log(`📊 ステップ表示更新: ${stepIndicator.textContent}`)
+    }
+    
+    // フォールバック用
     if (stepText) {
       stepText.textContent = `ステップ ${this.currentTreeStep + 1}/${this.treeSteps.length}: ${currentStep.description}`
     }
