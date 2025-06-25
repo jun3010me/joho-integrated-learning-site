@@ -1144,13 +1144,29 @@ export class CompressionTool {
     
     // ハフマン符号を生成
     console.log('Generating Huffman codes...')
-    this.huffmanCodes = this.generateHuffmanCodes(frequencies)
-    console.log('Generated codes:', this.huffmanCodes)
+    try {
+      this.huffmanCodes = this.generateHuffmanCodes(frequencies)
+      console.log('Generated codes:', this.huffmanCodes)
+      
+      if (!this.huffmanCodes || typeof this.huffmanCodes !== 'object') {
+        throw new Error('generateHuffmanCodes returned invalid result')
+      }
+    } catch (codeError) {
+      console.error('Error generating Huffman codes:', codeError)
+      alert('ハフマン符号の生成中にエラーが発生しました。')
+      return
+    }
     
     console.log('Generating tree steps...')
-    this.generateTreeSteps(frequencies)
-    console.log('Generated steps:', this.treeSteps.length)
+    try {
+      this.generateTreeSteps(frequencies)
+      console.log('Generated steps:', this.treeSteps.length)
+    } catch (stepError) {
+      console.error('Error generating tree steps:', stepError)
+      // ステップ生成に失敗してもコードテーブルは更新する
+    }
     
+    console.log('Updating code table...')
     this.updateCodeTable()
     
     // 木構築完了を表示
@@ -1358,29 +1374,77 @@ export class CompressionTool {
   }
 
   updateCodeTable() {
+    console.log('=== updateCodeTable called ===')
+    console.log('this.huffmanCodes:', this.huffmanCodes)
+    
     const tableBody = document.getElementById('code-table-body')
-    if (!tableBody || !this.huffmanCodes) return
+    if (!tableBody) {
+      console.warn('code-table-body element not found')
+      return
+    }
     
-    tableBody.innerHTML = ''
+    // ハフマン符号が正しく生成されているかチェック
+    if (!this.huffmanCodes || typeof this.huffmanCodes !== 'object') {
+      console.warn('huffmanCodes is not a valid object:', this.huffmanCodes)
+      tableBody.innerHTML = '<tr><td colspan="4" class="px-3 py-2 text-center text-gray-500">ハフマン符号が生成されていません</td></tr>'
+      return
+    }
     
-    Object.entries(this.huffmanCodes)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .forEach(([char, code]) => {
-        const frequencies = {}
-        ['a', 'b', 'c', 'd', 'e'].forEach(c => {
+    try {
+      const entries = Object.entries(this.huffmanCodes)
+      console.log('Object.entries result:', entries)
+      
+      if (!Array.isArray(entries)) {
+        throw new Error('Object.entries did not return an array')
+      }
+      
+      if (entries.length === 0) {
+        console.warn('huffmanCodes is empty')
+        tableBody.innerHTML = '<tr><td colspan="4" class="px-3 py-2 text-center text-gray-500">符号化する文字がありません</td></tr>'
+        return
+      }
+      
+      tableBody.innerHTML = ''
+      
+      // 頻度データを事前に収集
+      const frequencies = {}
+      try {
+        const characters = ['a', 'b', 'c', 'd', 'e']
+        characters.forEach(c => {
           const input = document.getElementById(`freq-${c}`)
-          if (input) frequencies[c.toUpperCase()] = parseInt(input.value) || 0
+          if (input) {
+            frequencies[c.toUpperCase()] = parseInt(input.value) || 0
+          }
         })
-        
-        const row = document.createElement('tr')
-        row.innerHTML = `
-          <td class="px-3 py-2 font-mono font-bold">${char}</td>
-          <td class="px-3 py-2">${frequencies[char] || 0}%</td>
-          <td class="px-3 py-2 font-mono text-blue-600">${code}</td>
-          <td class="px-3 py-2">${code.length}ビット</td>
-        `
-        tableBody.appendChild(row)
-      })
+        console.log('Collected frequencies for table:', frequencies)
+      } catch (freqError) {
+        console.error('Error collecting frequencies:', freqError)
+      }
+      
+      entries
+        .sort(([a], [b]) => a.localeCompare(b))
+        .forEach(([char, code]) => {
+          try {
+            console.log(`Creating row for: ${char} = ${code}`)
+            
+            const row = document.createElement('tr')
+            row.innerHTML = `
+              <td class="px-3 py-2 font-mono font-bold">${char}</td>
+              <td class="px-3 py-2">${frequencies[char] || 0}%</td>
+              <td class="px-3 py-2 font-mono text-blue-600">${code}</td>
+              <td class="px-3 py-2">${code.length}ビット</td>
+            `
+            tableBody.appendChild(row)
+          } catch (rowError) {
+            console.error(`Error creating row for ${char}:`, rowError)
+          }
+        })
+      
+      console.log('Code table updated successfully')
+    } catch (error) {
+      console.error('Error in updateCodeTable:', error)
+      tableBody.innerHTML = '<tr><td colspan="4" class="px-3 py-2 text-center text-red-500">符号表の更新中にエラーが発生しました</td></tr>'
+    }
   }
 
   // 木構築ステップ制御
