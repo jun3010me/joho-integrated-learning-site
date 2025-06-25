@@ -317,6 +317,7 @@ export class LogicLearning {
                .replace(/\bNOT\b/g, '!')
                .replace(/\bXOR\b/g, '^');
 
+    // Allow bitwise XOR (^) operator in the expression
     if (!/^[0-1\s&|!^()]+$/.test(expr)) {
         throw new Error('Invalid characters in expression');
     }
