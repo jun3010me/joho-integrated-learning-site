@@ -283,6 +283,54 @@
   @apply shadow-md;
 }
 
+/* 論理式ボタン */
+.logic-btn {
+  @apply px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 cursor-pointer;
+  @apply bg-white border-2 border-gray-300 hover:border-blue-400;
+  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+  @apply select-none;
+}
+
+.logic-btn:hover {
+  @apply shadow-md transform scale-105;
+}
+
+.logic-btn:active {
+  @apply transform scale-95;
+}
+
+.variable-btn {
+  @apply text-gray-800 font-bold;
+  @apply hover:bg-gray-50;
+}
+
+.operator-btn {
+  @apply font-semibold;
+}
+
+.bracket-btn {
+  @apply text-gray-600 font-mono font-bold;
+  @apply hover:bg-gray-50;
+}
+
+/* 論理式表示エリア */
+#logic-expression-display {
+  @apply transition-all duration-300;
+  min-height: 3rem;
+  display: flex;
+  align-items: center;
+}
+
+#logic-expression-display:empty::before {
+  content: '（論理式をボタンで入力してください）';
+  @apply text-gray-400 italic;
+}
+
+/* 回路図キャンバス */
+#circuit-canvas {
+  @apply max-w-full h-auto;
+}
+
 /* レスポンシブ対応 */
 @media (max-width: 768px) {
   .logic-tab-btn {
@@ -291,5 +339,14 @@
   
   .logic-input-btn {
     @apply px-3 py-1.5 min-w-12 text-base;
+  }
+  
+  .logic-btn {
+    @apply px-2 py-1.5 text-xs;
+  }
+  
+  #circuit-canvas {
+    width: 100%;
+    height: auto;
   }
 }
