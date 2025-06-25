@@ -352,7 +352,18 @@ export class LogicLearning {
   }
 
   addToExpression(value) {
+    console.log('🔍 DEBUG addToExpression called with:', value)
+    console.log('🔍 Current expression before:', this.currentExpression)
+    
     this.currentExpression += value
+    
+    console.log('🔍 Current expression after:', this.currentExpression)
+    
+    // 🚨 D がクリックされた場合の警告
+    if (value === 'D') {
+      console.warn('🚨 Variable D was clicked and added to expression!')
+    }
+    
     this.updateExpressionDisplay()
   }
 
@@ -520,9 +531,17 @@ export class LogicLearning {
 
   displayTruthTable(data, variableCount) {
     const { variables, table } = data
+    
     console.log('🔍 DEBUG displayTruthTable:')
     console.log('  Variables to display:', variables)
     console.log('  Table data:', table)
+    
+    // 🚨 最終チェック: 真理値表に表示される変数
+    console.log('🚨 FINAL CHECK: Variables being displayed in truth table:', variables)
+    if (variables.includes('D')) {
+      console.error('🚨 CRITICAL: Variable D is being displayed in truth table!')
+      console.error('🚨 This is the final bug location!')
+    }
     
     let html = `
       <div class="overflow-x-auto">
@@ -1145,10 +1164,24 @@ export class LogicLearning {
 
   extractVariables(expression) {
     console.log('🔍 DEBUG extractVariables called with:', expression)
+    console.log('🔍 Expression type:', typeof expression)
+    console.log('🔍 Expression length:', expression.length)
+    
     const matches = expression.match(/[A-D]/g)
     console.log('🔍 Raw matches:', matches)
+    
     const result = [...new Set(matches || [])].sort()
     console.log('🔍 Final extracted variables:', result)
+    
+    // 🚨 重要: A AND B の場合、Dが含まれていたらエラー
+    if (expression.trim().toUpperCase() === 'A AND B' && result.includes('D')) {
+      console.error('🚨 CRITICAL BUG: D found in "A AND B" expression!')
+      console.error('🚨 This should NEVER happen!')
+      console.error('🚨 Expression:', expression)
+      console.error('🚨 Matches:', matches)
+      console.error('🚨 Result:', result)
+    }
+    
     return result
   }
 
