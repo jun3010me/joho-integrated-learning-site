@@ -402,7 +402,7 @@ export class LogicLearning {
         gate.y = layout[gate.id]?.y || 150;
     });
 
-    return { variables, gates: mergedGates };
+    return { variables, gates: mergedGates, canvasSize };
   }
 
   tokenize(expression) {
