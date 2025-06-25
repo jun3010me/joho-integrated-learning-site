@@ -1231,8 +1231,14 @@ export class CompressionTool {
         const left = nodes.shift()   // 最小頻度
         const right = nodes.shift()  // 2番目の最小頻度
         
+        // 結合ノードの文字列を生成
+        const leftChars = this.getNodeChars(left)
+        const rightChars = this.getNodeChars(right)
+        const mergedChars = leftChars + rightChars
+        
         const merged = {
           char: null,
+          displayChars: mergedChars,
           freq: left.freq + right.freq,
           left,
           right
@@ -1334,8 +1340,14 @@ export class CompressionTool {
           throw new Error('Failed to get left or right node during merge')
         }
         
+        // 結合ノードの文字列を生成（子ノードの文字を連結）
+        const leftChars = this.getNodeChars(left)
+        const rightChars = this.getNodeChars(right)
+        const mergedChars = leftChars + rightChars
+        
         const merged = {
-          char: null,
+          char: null, // 葉ノードではないことを示す
+          displayChars: mergedChars, // 結合された文字列
           freq: left.freq + right.freq,
           left: this.deepCopyNode(left),
           right: this.deepCopyNode(right)
@@ -1372,10 +1384,30 @@ export class CompressionTool {
     if (!node) return null
     return {
       char: node.char,
+      displayChars: node.displayChars,
       freq: node.freq,
       left: this.deepCopyNode(node.left),
       right: this.deepCopyNode(node.right)
     }
+  }
+
+  getNodeChars(node) {
+    if (!node) return ''
+    
+    // 葉ノードの場合は文字を返す
+    if (node.char) {
+      return node.char
+    }
+    
+    // 結合ノードで既にdisplayCharsがある場合はそれを返す
+    if (node.displayChars) {
+      return node.displayChars
+    }
+    
+    // 子ノードから文字を再構築
+    const leftChars = this.getNodeChars(node.left)
+    const rightChars = this.getNodeChars(node.right)
+    return leftChars + rightChars
   }
 
   updateCodeTable() {
@@ -1552,16 +1584,8 @@ export class CompressionTool {
       circle.setAttribute('stroke-width', '2')
       svg.appendChild(circle)
       
-      // ノードラベル
-      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text')
-      text.setAttribute('x', x)
-      text.setAttribute('y', nodeY + 5)
-      text.setAttribute('text-anchor', 'middle')
-      text.setAttribute('font-size', '12')
-      text.setAttribute('font-weight', 'bold')
-      text.setAttribute('fill', node.char ? 'white' : 'black')
-      text.textContent = node.char || node.freq
-      svg.appendChild(text)
+      // ノードラベル - パターン1: 文字\n頻度の縦配置
+      this.drawNodeLabel(svg, x, nodeY, node)
       
       // 子ノードを描画
       if (node.left || node.right) {
@@ -1634,6 +1658,52 @@ export class CompressionTool {
     drawNode(tree, width / 2, 50, 0, maxLevel)
   }
 
+  drawNodeLabel(svg, x, y, node) {
+    // ノードの表示文字列を決定
+    let displayText
+    if (node.char) {
+      // 葉ノード: 文字のみ
+      displayText = node.char
+    } else if (node.displayChars) {
+      // 結合ノード: 結合された文字列
+      displayText = node.displayChars
+    } else {
+      // フォールバック
+      displayText = '?'
+    }
+    
+    // 文字列が長い場合は調整
+    if (displayText.length > 4) {
+      displayText = displayText.substring(0, 3) + '…'
+    }
+    
+    const isLeaf = !!node.char
+    const textColor = isLeaf ? 'white' : 'black'
+    const fontSize = Math.max(8, Math.min(12, 24 / displayText.length))
+    
+    // 文字ラベル（上部）
+    const charText = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+    charText.setAttribute('x', x)
+    charText.setAttribute('y', y - 3)
+    charText.setAttribute('text-anchor', 'middle')
+    charText.setAttribute('font-size', fontSize)
+    charText.setAttribute('font-weight', 'bold')
+    charText.setAttribute('fill', textColor)
+    charText.textContent = displayText
+    svg.appendChild(charText)
+    
+    // 頻度ラベル（下部）
+    const freqText = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+    freqText.setAttribute('x', x)
+    freqText.setAttribute('y', y + 8)
+    freqText.setAttribute('text-anchor', 'middle')
+    freqText.setAttribute('font-size', '10')
+    freqText.setAttribute('font-weight', 'normal')
+    freqText.setAttribute('fill', textColor)
+    freqText.textContent = node.freq + '%'
+    svg.appendChild(freqText)
+  }
+
   drawNodesOnly(svg, nodes) {
     console.log('Drawing individual nodes:', nodes)
     svg.innerHTML = ''
@@ -1669,27 +1739,8 @@ export class CompressionTool {
       circle.setAttribute('stroke-width', '2')
       svg.appendChild(circle)
       
-      // 文字ラベル
-      const charText = document.createElementNS('http://www.w3.org/2000/svg', 'text')
-      charText.setAttribute('x', x)
-      charText.setAttribute('y', y - 5)
-      charText.setAttribute('text-anchor', 'middle')
-      charText.setAttribute('font-size', '16')
-      charText.setAttribute('font-weight', 'bold')
-      charText.setAttribute('fill', 'white')
-      charText.textContent = node.char || '?'
-      svg.appendChild(charText)
-      
-      // 頻度ラベル
-      const freqText = document.createElementNS('http://www.w3.org/2000/svg', 'text')
-      freqText.setAttribute('x', x)
-      freqText.setAttribute('y', y + 8)
-      freqText.setAttribute('text-anchor', 'middle')
-      freqText.setAttribute('font-size', '12')
-      freqText.setAttribute('font-weight', 'normal')
-      freqText.setAttribute('fill', 'white')
-      freqText.textContent = node.freq + '%'
-      svg.appendChild(freqText)
+      // 統一されたノードラベル表示
+      this.drawNodeLabel(svg, x, y, node)
     })
     
     console.log('Individual nodes drawn successfully')
