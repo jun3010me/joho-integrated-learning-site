@@ -471,86 +471,109 @@ export class LogicLearning {
   drawLogicCircuit(circuit) {
     const canvas = document.getElementById('circuit-canvas');
     if (!canvas) return;
+    canvas.width = circuit.canvasSize.width;
+    canvas.height = circuit.canvasSize.height;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#f8fafc'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#fdfdfd'; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const varPos = {};
-    const yStep = Math.min(60, (canvas.height - 40) / Math.max(1, circuit.variables.length));
-    const yStart = (canvas.height - (circuit.variables.length - 1) * yStep) / 2;
+    const yStep = 100;
+    const yStart = (canvas.height / 2) - (circuit.variables.length - 1) * yStep / 2;
     circuit.variables.forEach((v, i) => {
-        varPos[v] = { x: 60, y: yStart + i * yStep };
+        const y = yStart > 0 ? yStart + i * yStep : 100 + i * yStep;
+        varPos[v] = { x: 60, y: y };
         this.drawVariable(ctx, v, varPos[v].x, varPos[v].y);
     });
-    circuit.gates.forEach(g => this.drawGate(ctx, g, circuit, varPos));
+
+    const wireRouter = new this.WireRouter(ctx, circuit.gates);
+    circuit.gates.forEach(g => this.drawGate(ctx, g, circuit, varPos, wireRouter));
   }
 
   drawVariable(ctx, text, x, y) {
       ctx.beginPath(); ctx.arc(x, y, 8, 0, 2 * Math.PI); ctx.fillStyle = '#dbeafe'; ctx.fill();
       ctx.strokeStyle = '#1e40af'; ctx.stroke(); ctx.fillStyle = '#1e40af'; ctx.font = 'bold 16px Arial';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, x - 30, y);
-      ctx.strokeStyle = '#374151'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x + 8, y); ctx.lineTo(x + 50, y); ctx.stroke();
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(text, x - 30, y);
   }
 
-  drawGate(ctx, gate, circuit, varPos) {
+  drawGate(ctx, gate, circuit, varPos, wireRouter) {
       const { x, y, inputs, type, output } = gate;
+      const gateWidth = 70, gateHeight = 40;
+
       inputs.forEach((input, i) => {
-          const to = { x: x - 30, y: (inputs.length === 1) ? y : y - 15 + (i * 30) };
+          const to = { x: x - gateWidth / 2, y: (inputs.length === 1) ? y : y - gateHeight / 4 + (i * gateHeight / 2) };
           const fromGate = circuit.gates.find(g => g.output === input);
-          const from = fromGate ? { x: fromGate.x + 30, y: fromGate.y } : { x: varPos[input].x + 50, y: varPos[input].y };
-          this.drawWire(ctx, from, to, !!fromGate);
+          const from = fromGate ? { x: fromGate.x + gateWidth / 2, y: fromGate.y } : { x: varPos[input].x, y: varPos[input].y };
+          wireRouter.route(from, to, !!fromGate);
       });
-      this.drawGateSymbol(ctx, type, x, y);
-      if (['S', 'C', 'Y'].includes(output)) this.drawOutput(ctx, output, x, y, ctx.canvas.width);
+
+      this.drawGateSymbol(ctx, type, x, y, gateWidth, gateHeight);
+
+      if (['S', 'C', 'Y'].includes(output)) {
+          const from = { x: x + gateWidth / 2, y: y };
+          const to = { x: ctx.canvas.width - 60, y: y };
+          wireRouter.route(from, to, true, true);
+          this.drawOutputLabel(ctx, output, to.x, to.y);
+      }
+  }
+  
+  drawOutputLabel(ctx, text, x, y) {
+      ctx.strokeStyle = '#374151';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x - 10, y);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      
+      ctx.beginPath();
+      ctx.arc(x, y, 8, 0, 2 * Math.PI);
+      ctx.fillStyle = '#fbbf24';
+      ctx.fill();
+      ctx.strokeStyle = '#d97706';
+      ctx.stroke();
+      
+      ctx.fillStyle = '#d97706';
+      ctx.font = 'bold 16px Arial';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, x + 15, y);
   }
 
-  drawWire(ctx, from, to, isIntermediate) {
-      ctx.strokeStyle = isIntermediate ? '#dc2626' : '#374151'; ctx.lineWidth = 2; ctx.beginPath();
-      ctx.moveTo(from.x, from.y);
-      const midX = from.x + (to.x - from.x) / (isIntermediate ? 1.5 : 2);
-      ctx.lineTo(midX, from.y); ctx.lineTo(midX, to.y); ctx.lineTo(to.x, to.y); ctx.stroke();
-      if (!isIntermediate) { ctx.beginPath(); ctx.arc(midX, from.y, 3, 0, 2 * Math.PI); ctx.fillStyle = '#374151'; ctx.fill(); }
-  }
-
-  drawOutput(ctx, text, x, y, canvasWidth) {
-      ctx.strokeStyle = '#374151'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x + 30, y); ctx.lineTo(canvasWidth - 100, y); ctx.stroke();
-      ctx.beginPath(); ctx.arc(canvasWidth - 100, y, 10, 0, 2 * Math.PI); ctx.fillStyle = '#fbbf24'; ctx.fill();
-      ctx.strokeStyle = '#d97706'; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#d97706'; ctx.font = 'bold 18px Arial';
-      ctx.fillText(text, canvasWidth - 60, y);
-  }
-
-  drawGateSymbol(ctx, type, x, y) {
+  drawGateSymbol(ctx, type, x, y, width, height) {
     const styles = {
-      AND:    { fill: '#dbeafe', stroke: '#1e40af', symbol: '&',  symbolSize: 16 },
-      OR:     { fill: '#dcfce7', stroke: '#166534', symbol: '≥1', symbolSize: 12 },
-      NOT:    { fill: '#fef2f2', stroke: '#dc2626', symbol: null, symbolSize: 0 },
-      XOR:    { fill: '#f3e8ff', stroke: '#7c3aed', symbol: '⊕',  symbolSize: 12 },
-      BUFFER: { fill: '#f9fafb', stroke: '#6b7280', symbol: '1',  symbolSize: 12 }
+      AND:    { fill: '#dbeafe', stroke: '#1e40af', symbol: null },
+      OR:     { fill: '#dcfce7', stroke: '#166534', symbol: '≥1' },
+      NOT:    { fill: '#fef2f2', stroke: '#dc2626', symbol: null },
+      XOR:    { fill: '#f3e8ff', stroke: '#7c3aed', symbol: '=1' },
+      BUFFER: { fill: '#f9fafb', stroke: '#6b7280', symbol: '1' }
     };
-    const style = styles[type] || styles['AND'];
+    const style = styles[type];
+    const halfHeight = height / 2;
 
     ctx.fillStyle = style.fill;
     ctx.strokeStyle = style.stroke;
-    ctx.lineWidth = 3;
-    
+    ctx.lineWidth = 2;
     ctx.beginPath();
 
     if (type === 'AND') {
-        ctx.moveTo(x - 25, y - 20);
-        ctx.lineTo(x, y - 20);
-        ctx.arc(x, y, 20, -Math.PI / 2, Math.PI / 2);
+        ctx.moveTo(x - width / 2, y - halfHeight);
+        ctx.lineTo(x, y - halfHeight);
+        ctx.arc(x, y, halfHeight, -Math.PI / 2, Math.PI / 2);
+        ctx.lineTo(x - width / 2, y + halfHeight);
         ctx.closePath();
     } else if (type === 'OR' || type === 'XOR') {
-        const backX = x - 30;
-        ctx.moveTo(backX, y - 20);
-        ctx.quadraticCurveTo(x - 5, y - 15, x + 25, y);
-        ctx.quadraticCurveTo(x - 5, y + 15, backX, y + 20);
-        ctx.quadraticCurveTo(x - 15, y, backX, y - 20);
+        const backX = x - width / 2;
+        ctx.moveTo(backX, y - halfHeight);
+        ctx.quadraticCurveTo(x, y - halfHeight, x + width / 2, y);
+        ctx.quadraticCurveTo(x, y + halfHeight, backX, y + halfHeight);
+        ctx.quadraticCurveTo(x - width / 2 * 0.5, y, backX, y - halfHeight);
         ctx.closePath();
     } else { // NOT, BUFFER
-        ctx.moveTo(x - 25, y - 15);
-        ctx.lineTo(x - 25, y + 15);
-        ctx.lineTo(x + 15, y);
+        const triangleTip = x + width / 2 - 5;
+        ctx.moveTo(x - width / 2, y - halfHeight);
+        ctx.lineTo(x - width / 2, y + halfHeight);
+        ctx.lineTo(triangleTip, y);
         ctx.closePath();
     }
     ctx.fill();
@@ -558,26 +581,75 @@ export class LogicLearning {
 
     if (style.symbol) {
         ctx.fillStyle = style.stroke;
-        ctx.font = `bold ${style.symbolSize}px Arial`;
+        ctx.font = 'bold 12px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(style.symbol, x, y);
     }
     if (type === 'NOT') {
+        const circleX = x + width / 2;
         ctx.beginPath();
-        ctx.arc(x + 20, y, 5, 0, 2 * Math.PI);
+        ctx.arc(circleX, y, 5, 0, 2 * Math.PI);
         ctx.fillStyle = '#ffffff';
         ctx.fill();
         ctx.strokeStyle = style.stroke;
         ctx.stroke();
     }
     if (type === 'XOR') {
+        const xorLineX = x - width / 2 - 5;
         ctx.beginPath();
-        ctx.moveTo(x - 35, y - 18);
-        ctx.quadraticCurveTo(x - 20, y, x - 35, y + 18);
+        ctx.moveTo(xorLineX, y - halfHeight);
+        ctx.quadraticCurveTo(x - width/2 * 0.5, y, xorLineX, y + halfHeight);
         ctx.strokeStyle = style.stroke;
         ctx.stroke();
     }
+  }
+
+  WireRouter = class {
+      constructor(ctx, gates) {
+          this.ctx = ctx;
+          this.obstacles = gates.map(g => ({ x: g.x, y: g.y, width: 70, height: 40 }));
+          this.verticalChannels = {};
+      }
+
+      route(from, to, isIntermediate, isFinalOutput = false) {
+          this.ctx.strokeStyle = isIntermediate ? '#dc2626' : '#374151';
+          this.ctx.lineWidth = 2;
+          this.ctx.beginPath();
+
+          const startX = from.x;
+          const startY = from.y;
+          const endX = to.x;
+          const endY = to.y;
+
+          const midX = startX + 60;
+
+          this.ctx.moveTo(startX, startY);
+          this.ctx.lineTo(midX, startY);
+          
+          const obstacle = this.obstacles.find(o => 
+              midX > o.x - o.width/2 && midX < o.x + o.width/2 &&
+              ((startY < o.y && endY > o.y) || (startY > o.y && endY < o.y))
+          );
+
+          if (obstacle) {
+              const detourX = obstacle.x - obstacle.width/2 - 20;
+              this.ctx.lineTo(detourX, startY);
+              this.ctx.lineTo(detourX, endY);
+          } else {
+              this.ctx.lineTo(midX, endY);
+          }
+
+          this.ctx.lineTo(endX, endY);
+          this.ctx.stroke();
+
+          if (!isFinalOutput && !isIntermediate) {
+              this.ctx.beginPath();
+              this.ctx.arc(midX, startY, 3, 0, 2 * Math.PI);
+              this.ctx.fillStyle = '#374151';
+              this.ctx.fill();
+          }
+      }
   }
 
   cleanup() {}
