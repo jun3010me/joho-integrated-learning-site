@@ -26,7 +26,7 @@ export class LogicLearning {
         </div>
 
         <!-- 基本論理演算セクション -->
-        <section id="basic-section" class="logic-section active">
+        <section id="basic-section" class="logic-section active" style="display: block;">
           <div class="card mb-8">
             <h2 class="text-2xl font-bold text-gray-900 mb-6">基本論理演算</h2>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -55,7 +55,7 @@ export class LogicLearning {
         </section>
 
         <!-- 真理値表・回路図セクション -->
-        <section id="truth-table-section" class="logic-section">
+        <section id="truth-table-section" class="logic-section" style="display: none;">
             <div class="card mb-8">
                 <h2 class="text-2xl font-bold text-gray-900 mb-6">論理式入力・真理値表・回路図</h2>
                 <div class="mb-8">
@@ -123,7 +123,7 @@ export class LogicLearning {
         </section>
 
         <!-- 論理式変換セクション -->
-        <section id="expression-section" class="logic-section">
+        <section id="expression-section" class="logic-section" style="display: none;">
           <div class="card mb-8">
             <h2 class="text-2xl font-bold text-gray-900 mb-6">論理式変換</h2>
             <p class="text-gray-600">この機能は現在開発中です。</p>
@@ -133,8 +133,6 @@ export class LogicLearning {
     `;
 
     this.setupEventListeners();
-    this.updateLogicCalculator();
-    this.updateExpressionDisplay(); // Initial display setup
   }
 
   setupEventListeners() {
@@ -159,7 +157,10 @@ export class LogicLearning {
     document.getElementById('load-half-adder')?.addEventListener('click', () => this.loadHalfAdder());
     document.getElementById('load-full-adder')?.addEventListener('click', () => this.loadFullAdder());
 
+    this.setupLogicButtons();
     this.updateVariableButtons();
+    this.updateLogicCalculator();
+    this.updateExpressionDisplay();
   }
 
   setupLogicButtons() {
@@ -229,7 +230,7 @@ export class LogicLearning {
   updateLogicCalculator() {
     const a = document.getElementById('input-a')?.textContent === '1';
     const b = document.getElementById('input-b')?.textContent === '1';
-    if (a === null || b === null) return;
+    if (document.getElementById('result-and') === null) return;
 
     document.getElementById('result-and').textContent = (a && b) ? '1' : '0';
     document.getElementById('result-or').textContent = (a || b) ? '1' : '0';
@@ -307,28 +308,41 @@ export class LogicLearning {
 
   evaluateExpression(expression, values) {
     let expr = expression.toUpperCase();
-    Object.entries(values).forEach(([v, val]) => { expr = expr.replace(new RegExp(`\b${v}\b`, 'g'), val.toString()); });
-    expr = expr.replace(/\bAND\b/g, '&&').replace(/\bOR\b/g, '||').replace(/\bNOT\b/g, '!').replace(/\bXOR\b/g, '^');
-    if (!/^[0-1\s&|!^()]+$/.test(expr)) throw new Error('Invalid characters in expression');
+    Object.entries(values).forEach(([v, val]) => {
+        expr = expr.replace(new RegExp(`\b${v}\b`, 'g'), val.toString());
+    });
+    
+    expr = expr.replace(/\bAND\b/g, '&&')
+               .replace(/\bOR\b/g, '||')
+               .replace(/\bNOT\b/g, '!')
+               .replace(/\bXOR\b/g, '^');
+
+    if (!/^[0-1\s&|!^()]+$/.test(expr)) {
+        throw new Error('Invalid characters in expression');
+    }
+
     try {
-      return new Function(`return ${expr.replace(/(\d+)\s*\^\s*(\d+)/g, '(($1) !== ($2) ? 1 : 0)')}`)() ? 1 : 0;
+        return new Function(`return !!(${expr});`)() ? 1 : 0;
     } catch (e) {
-      throw new Error('Invalid expression syntax');
+        console.error(`Error evaluating expression: "${expression}" -> "${expr}"`, e);
+        throw new Error('Invalid expression syntax');
     }
   }
 
   displayTruthTable(data) {
     const { expressions, variables, table } = data;
+    const th = 'px-3 py-2 border-b font-semibold text-center';
+    const td = 'px-3 py-2 border-b text-center font-mono';
     let html = `<div class="overflow-x-auto"><table class="w-full bg-white border"><thead><tr>`;
-    variables.forEach(v => { html += `<th class="th">${v}</th>`; });
-    expressions.forEach(e => { html += `<th class="th bg-blue-100">${e.name}</th>`; });
+    variables.forEach(v => { html += `<th class="${th}">${v}</th>`; });
+    expressions.forEach(e => { html += `<th class="${th} bg-blue-100">${e.name}</th>`; });
     html += `</tr></thead><tbody>`;
-    table.forEach(row => {
-      html += `<tr>`;
-      variables.forEach(v => { html += `<td class="td">${row.inputs[v]}</td>`; });
+    table.forEach((row, index) => {
+      html += `<tr class="${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}">`;
+      variables.forEach(v => { html += `<td class="${td}">${row.inputs[v]}</td>`; });
       expressions.forEach(e => {
         const res = row.results[e.name];
-        html += `<td class="td font-bold ${res ? 'text-green-600' : 'text-red-600'}">${res}</td>`;
+        html += `<td class="${td} font-bold ${res ? 'text-green-600' : 'text-red-600'}">${res}</td>`;
       });
       html += `</tr>`;
     });
@@ -391,7 +405,10 @@ export class LogicLearning {
   calculateLayout(gates, variables) {
     const layout = {}, levels = {}, gateDeps = {};
     gates.forEach(g => gateDeps[g.id] = new Set());
-    gates.forEach(g => g.inputs.forEach(i => gates.find(sg => sg.output === i) && gateDeps[g.id].add(gates.find(sg => sg.output === i).id)));
+    gates.forEach(g => g.inputs.forEach(i => {
+        const sourceGate = gates.find(sg => sg.output === i);
+        if (sourceGate) gateDeps[g.id].add(sourceGate.id);
+    }));
     const getLevel = id => levels[id] ?? (levels[id] = (gateDeps[id].size === 0) ? 0 : Math.max(...[...gateDeps[id]].map(getLevel)) + 1);
     gates.forEach(g => getLevel(g.id));
     const gatesByLevel = {};
