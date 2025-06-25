@@ -646,291 +646,219 @@ export class LogicLearning {
     this.drawLogicCircuit(circuit)
   }
 
+  tokenize(expression) {
+    // Add spaces around parentheses to make splitting easier
+    const spacedExpression = expression.replace(/\(/g, ' ( ').replace(/\)/g, ' ) ');
+    // Split by spaces and filter out empty strings
+    return spacedExpression.split(/\s+/).filter(token => token.length > 0);
+  }
+
+  calculateLayout(gates, variables) {
+    const layout = {};
+    const levels = {};
+    const gateDeps = {};
+    const gateInfo = {}; // To store gate objects by ID
+
+    gates.forEach(gate => {
+        gateInfo[gate.id] = gate;
+        gateDeps[gate.id] = new Set();
+    });
+
+    gates.forEach(gate => {
+        gate.inputs.forEach(input => {
+            const sourceGate = gates.find(g => g.output === input);
+            if (sourceGate) {
+                gateDeps[gate.id].add(sourceGate.id);
+            }
+        });
+    });
+
+    // Calculate level (distance from an input) for each gate
+    const calculateLevel = (gateId) => {
+        if (levels[gateId] !== undefined) return levels[gateId];
+
+        const deps = gateDeps[gateId];
+        if (deps.size === 0) {
+            levels[gateId] = 0;
+            return 0;
+        }
+
+        let maxDepLevel = -1;
+        deps.forEach(depId => {
+            maxDepLevel = Math.max(maxDepLevel, calculateLevel(depId));
+        });
+        
+        levels[gateId] = maxDepLevel + 1;
+        return levels[gateId];
+    };
+
+    gates.forEach(gate => calculateLevel(gate.id));
+
+    // Group gates by level
+    const gatesByLevel = {};
+    let maxLevel = 0;
+    gates.forEach(gate => {
+        const level = levels[gate.id];
+        maxLevel = Math.max(maxLevel, level);
+        if (!gatesByLevel[level]) {
+            gatesByLevel[level] = [];
+        }
+        gatesByLevel[level].push(gate);
+    });
+
+    // Assign x, y coordinates
+    const xSpacing = 180;
+    const ySpacing = 120;
+    const startX = 200;
+    
+    Object.keys(gatesByLevel).forEach(level => {
+        const levelGates = gatesByLevel[level];
+        const canvasHeight = 300; // Assuming canvas height
+        const levelYStart = (canvasHeight - (levelGates.length - 1) * ySpacing) / 2;
+        
+        levelGates.forEach((gate, index) => {
+            layout[gate.id] = {
+                x: startX + level * xSpacing,
+                y: levelYStart + index * ySpacing
+            };
+        });
+    });
+
+    return layout;
+  }
+
   parseLogicExpression(expression) {
-    console.log('🔍 DEBUG: parseLogicExpression called with:', expression)
+    console.log('🚀 New parser: Starting parsing for expression:', expression);
+
+    const precedence = { 'NOT': 4, 'XOR': 3, 'AND': 2, 'OR': 1 };
+    const operators = new Set(['AND', 'OR', 'XOR', 'NOT']);
     
-    // 論理式を解析して回路構造を構築
-    const variables = this.extractVariables(expression)
-    const gates = []
-    const connections = []
+    const tokens = this.tokenize(expression.toUpperCase());
     
-    let normalizedExpr = expression.toUpperCase().trim()
-    let gateId = 0
-    
-    console.log('📝 Normalized expression:', normalizedExpr)
-    console.log('🔤 Extracted variables:', variables)
-    
-    // 括弧を含む複雑な式への対応
-    if (normalizedExpr.includes('(') && normalizedExpr.includes(')')) {
-      console.log('🔍 Processing expression with parentheses')
-      
-      // NOT (A AND B) のパターン
-      if (normalizedExpr.startsWith('NOT (') && normalizedExpr.endsWith(')')) {
-        console.log('🔍 Detected NOT (expression) pattern')
-        const innerExpr = normalizedExpr.substring(5, normalizedExpr.length - 1).trim()
-        console.log('🔍 Inner expression:', innerExpr)
-        
-        if (innerExpr.includes(' AND ')) {
-          const andParts = innerExpr.split(' AND ').map(part => part.trim())
-          console.log('🔍 AND parts:', andParts)
-          
-          // ANDゲートを追加
-          const andGate = {
-            id: `gate_${gateId++}`,
-            type: 'AND',
-            inputs: andParts,
-            x: 200,
-            y: 130,
-            output: `and_out_1`
-          }
-          gates.push(andGate)
-          
-          // NOTゲートを追加
-          const notGate = {
-            id: `gate_${gateId++}`,
-            type: 'NOT',
-            inputs: [andGate.output],
-            x: 350,
-            y: 150,
-            output: 'Y'
-          }
-          gates.push(notGate)
-          
-          // 接続を定義
-          connections.push({
-            from: andGate.id,
-            to: notGate.id,
-            fromOutput: andGate.output,
-            toInput: 0
-          })
-        } else if (innerExpr.includes(' OR ')) {
-          const orParts = innerExpr.split(' OR ').map(part => part.trim())
-          
-          // ORゲートを追加
-          const orGate = {
-            id: `gate_${gateId++}`,
-            type: 'OR',
-            inputs: orParts,
-            x: 200,
-            y: 130,
-            output: `or_out_1`
-          }
-          gates.push(orGate)
-          
-          // NOTゲートを追加
-          const notGate = {
-            id: `gate_${gateId++}`,
-            type: 'NOT',
-            inputs: [orGate.output],
-            x: 350,
-            y: 150,
-            output: 'Y'
-          }
-          gates.push(notGate)
-          
-          // 接続を定義
-          connections.push({
-            from: orGate.id,
-            to: notGate.id,
-            fromOutput: orGate.output,
-            toInput: 0
-          })
-        }
-      } else if (normalizedExpr.match(/\(.*\)\s+AND\s+/)) {
-        // (A OR B) AND C のパターン
-        const match = normalizedExpr.match(/\((.*?)\)\s+AND\s+(.*)/)
-        if (match) {
-          const innerExpr = match[1].trim()
-          const rightExpr = match[2].trim()
-          
-          if (innerExpr.includes(' OR ')) {
-            const orParts = innerExpr.split(' OR ').map(part => part.trim())
-            
-            // ORゲートを追加
-            const orGate = {
-              id: `gate_${gateId++}`,
-              type: 'OR',
-              inputs: orParts,
-              x: 200,
-              y: 120,
-              output: `or_out_1`
+    const outputQueue = [];
+    const operatorStack = [];
+
+    // Shunting-yard algorithm to convert infix to RPN
+    tokens.forEach(token => {
+        if (/[A-D]/.test(token) && token.length === 1) { // It's an operand (A, B, C...)
+            outputQueue.push(token);
+        } else if (operators.has(token)) {
+            while (
+                operatorStack.length > 0 &&
+                operatorStack[operatorStack.length - 1] !== '(' &&
+                precedence[operatorStack[operatorStack.length - 1]] >= precedence[token]
+            ) {
+                outputQueue.push(operatorStack.pop());
             }
-            gates.push(orGate)
-            
-            // ANDゲートを追加
-            const andGate = {
-              id: `gate_${gateId++}`,
-              type: 'AND',
-              inputs: [orGate.output, rightExpr],
-              x: 350,
-              y: 140,
-              output: 'Y'
+            operatorStack.push(token);
+        } else if (token === '(') {
+            operatorStack.push(token);
+        } else if (token === ')') {
+            while (operatorStack.length > 0 && operatorStack[operatorStack.length - 1] !== '(') {
+                outputQueue.push(operatorStack.pop());
             }
-            gates.push(andGate)
-            
-            // 接続を定義
-            connections.push({
-              from: orGate.id,
-              to: andGate.id,
-              fromOutput: orGate.output,
-              toInput: 0
-            })
-          }
+            if (operatorStack[operatorStack.length - 1] === '(') {
+                operatorStack.pop(); // Discard the '('
+            } else {
+                throw new Error('Mismatched parentheses in expression');
+            }
         }
-      }
-    } else if (normalizedExpr.includes(' AND ') && normalizedExpr.includes(' OR ')) {
-      // AND と OR が混在している場合（括弧なし）
-      const orParts = normalizedExpr.split(' OR ')
-      
-      if (orParts.length === 2) {
-        const leftPart = orParts[0].trim()
-        const rightPart = orParts[1].trim()
-        
-        if (leftPart.includes(' AND ')) {
-          // 左側がAND演算の場合: A AND B OR C
-          const andParts = leftPart.split(' AND ').map(part => part.trim())
-          
-          // ANDゲートを追加
-          const andGate = {
-            id: `gate_${gateId++}`,
-            type: 'AND',
-            inputs: andParts,
-            x: 200,
-            y: 110,
-            output: `and_out_1`
-          }
-          gates.push(andGate)
-          
-          // ORゲートを追加
-          const orGate = {
-            id: `gate_${gateId++}`,
-            type: 'OR',
-            inputs: [andGate.output, rightPart],
-            x: 350,
-            y: 140,
-            output: 'Y'
-          }
-          gates.push(orGate)
-          
-          // 接続を定義
-          connections.push({
-            from: andGate.id,
-            to: orGate.id,
-            fromOutput: andGate.output,
-            toInput: 0
-          })
+    });
+
+    while (operatorStack.length > 0) {
+        const op = operatorStack.pop();
+        if (op === '(') {
+            throw new Error('Mismatched parentheses in expression');
         }
-      }
-    } else if (normalizedExpr.startsWith('NOT ') && normalizedExpr.includes(' AND ')) {
-      // NOT A AND B のパターン
-      const parts = normalizedExpr.split(' AND ')
-      const leftPart = parts[0].trim() // "NOT A"
-      const rightPart = parts[1].trim() // "B"
-      
-      if (leftPart.startsWith('NOT ')) {
-        const notInput = leftPart.replace('NOT ', '').trim()
-        
-        // NOTゲートを追加
-        const notGate = {
-          id: `gate_${gateId++}`,
-          type: 'NOT',
-          inputs: [notInput],
-          x: 150,
-          y: 100,
-          output: `not_out_1`
-        }
-        gates.push(notGate)
-        
-        // ANDゲートを追加
-        const andGate = {
-          id: `gate_${gateId++}`,
-          type: 'AND',
-          inputs: [notGate.output, rightPart],
-          x: 300,
-          y: 130,
-          output: 'Y'
-        }
-        gates.push(andGate)
-        
-        // 接続を定義
-        connections.push({
-          from: notGate.id,
-          to: andGate.id,
-          fromOutput: notGate.output,
-          toInput: 0
-        })
-      }
-    } else if (normalizedExpr.includes(' AND ')) {
-      // ANDのみの場合
-      const andParts = normalizedExpr.split(' AND ').map(part => part.trim())
-      const andGate = {
-        id: `gate_${gateId++}`,
-        type: 'AND',
-        inputs: andParts,
-        x: 250,
-        y: 150,
-        output: 'Y'
-      }
-      gates.push(andGate)
-    } else if (normalizedExpr.includes(' OR ')) {
-      // ORのみの場合
-      const orParts = normalizedExpr.split(' OR ').map(part => part.trim())
-      const orGate = {
-        id: `gate_${gateId++}`,
-        type: 'OR',
-        inputs: orParts,
-        x: 250,
-        y: 150,
-        output: 'Y'
-      }
-      gates.push(orGate)
-    } else if (normalizedExpr.includes(' XOR ')) {
-      // XORの場合
-      const xorParts = normalizedExpr.split(' XOR ').map(part => part.trim())
-      const xorGate = {
-        id: `gate_${gateId++}`,
-        type: 'XOR',
-        inputs: xorParts,
-        x: 250,
-        y: 150,
-        output: 'Y'
-      }
-      gates.push(xorGate)
-    } else if (normalizedExpr.startsWith('NOT ')) {
-      // NOTのみの場合
-      const notInput = normalizedExpr.replace('NOT ', '').trim()
-      const notGate = {
-        id: `gate_${gateId++}`,
-        type: 'NOT',
-        inputs: [notInput],
-        x: 250,
-        y: 150,
-        output: 'Y'
-      }
-      gates.push(notGate)
-    } else {
-      // 単一変数の場合
-      gates.push({
-        id: `gate_${gateId++}`,
-        type: 'BUFFER',
-        inputs: [normalizedExpr],
-        x: 250,
-        y: 150,
-        output: 'Y'
-      })
+        outputQueue.push(op);
     }
+
+    console.log('RPN:', outputQueue.join(' '));
+
+    // Build circuit from RPN
+    const variables = this.extractVariables(expression);
+    const gates = [];
+    const connections = [];
+    const operandStack = [];
+    let gateId = 0;
+
+    if (outputQueue.length === 0 && expression.trim() !== '') {
+        throw new Error('Invalid expression. Could not parse.');
+    }
+
+    outputQueue.forEach(token => {
+        if (operators.has(token)) {
+            const gateType = token;
+            const gate = {
+                id: `gate_${gateId++}`,
+                type: gateType,
+                inputs: [],
+                output: `g${gateId-1}_out`
+            };
+
+            if (gateType === 'NOT') {
+                if (operandStack.length < 1) throw new Error('Invalid syntax for NOT operator');
+                const operand = operandStack.pop();
+                gate.inputs.push(operand);
+            } else {
+                if (operandStack.length < 2) throw new Error(`Invalid syntax for ${gateType} operator`);
+                const operand2 = operandStack.pop();
+                const operand1 = operandStack.pop();
+                gate.inputs.push(operand1, operand2);
+            }
+            
+            gates.push(gate);
+            operandStack.push(gate.output);
+
+        } else { // Operand
+            operandStack.push(token);
+        }
+    });
     
-    console.log('🏗️ Generated circuit structure:')
-    console.log('  Variables:', variables)
-    console.log('  Gates:', gates)
-    console.log('  Connections:', connections)
-    
+    if (operandStack.length > 1) {
+        throw new Error('Invalid expression. Too many operands.');
+    }
+
+    // The last gate's output is the final output 'Y'
+    if (gates.length > 0) {
+        gates[gates.length - 1].output = 'Y';
+    } else if (operandStack.length === 1) {
+        // Handle single variable expression like "A"
+        gates.push({
+            id: `gate_${gateId++}`,
+            type: 'BUFFER',
+            inputs: [operandStack[0]],
+            output: 'Y'
+        });
+    }
+
+    // Calculate layout and add connections
+    const layout = this.calculateLayout(gates, variables);
+    gates.forEach(gate => {
+        gate.x = layout[gate.id]?.x || 250;
+        gate.y = layout[gate.id]?.y || 150;
+        
+        gate.inputs.forEach((input, index) => {
+            const sourceGate = gates.find(g => g.output === input);
+            if (sourceGate) {
+                connections.push({
+                    from: sourceGate.id,
+                    to: gate.id,
+                    fromOutput: sourceGate.output,
+                    toInput: index
+                });
+            }
+        });
+    });
+
+    console.log('🏗️ Generated circuit structure:', { variables, gates, connections });
+
     return {
-      variables,
-      gates,
-      connections,
-      expression: normalizedExpr
-    }
+        variables,
+        gates,
+        connections,
+        expression: expression.toUpperCase().trim()
+    };
   }
 
   getGateInfo(gateType) {
@@ -994,15 +922,17 @@ export class LogicLearning {
     // 動的レイアウト計算
     const numVariables = circuit.variables.length
     const canvasHeight = canvas.height
-    const availableHeight = canvasHeight - 120 // 上下マージン
-    const inputSpacing = Math.min(60, availableHeight / Math.max(numVariables, 2))
+    const availableHeight = canvasHeight - 40 // 上下マージン
+    const inputSpacing = Math.min(60, availableHeight / Math.max(1, numVariables))
     const startY = (canvasHeight - (numVariables - 1) * inputSpacing) / 2
     
     // 入力変数を描画（使用される変数のみ）
     const inputX = 60
-    
+    const variablePositions = {};
+
     circuit.variables.forEach((variable, index) => {
       const y = startY + index * inputSpacing
+      variablePositions[variable] = { x: inputX, y: y };
       
       // 入力端子の円
       ctx.beginPath()
@@ -1033,69 +963,50 @@ export class LogicLearning {
       
       // ゲートの入力線を描画
       gate.inputs.forEach((input, inputIndex) => {
+        let inputY;
+        if (gate.inputs.length === 1) {
+            inputY = gateY;
+        } else {
+            inputY = gateY - 15 + (inputIndex * 30);
+        }
+
         if (circuit.variables.includes(input)) {
           // 変数からの入力
-          const varIndex = circuit.variables.indexOf(input)
-          const varY = startY + varIndex * inputSpacing
-          
-          // 入力端子の位置を計算
-          let inputY
-          if (gate.inputs.length === 1) {
-            inputY = gateY
-          } else {
-            inputY = gateY - 15 + (inputIndex * 30)
-          }
+          const varPos = variablePositions[input];
           
           // 配線の描画
           ctx.strokeStyle = '#374151'
           ctx.lineWidth = 2
           ctx.beginPath()
-          ctx.moveTo(inputX + 50, varY)
+          ctx.moveTo(varPos.x + 50, varPos.y)
           
-          // 直接接続できる場合
-          if (Math.abs(varY - inputY) < 15) {
-            ctx.lineTo(gateX - 30, inputY)
-          } else {
-            // 垂直線が必要な場合
-            const midX = gateX - 90
-            ctx.lineTo(midX, varY)
-            ctx.lineTo(midX, inputY)
-            ctx.lineTo(gateX - 30, inputY)
-          }
+          const midX = gateX - 90;
+          ctx.lineTo(midX, varPos.y)
+          ctx.lineTo(midX, inputY)
+          ctx.lineTo(gateX - 30, inputY)
           ctx.stroke()
           
           // 接続点を描画
           ctx.beginPath()
-          ctx.arc(gateX - 30, inputY, 3, 0, 2 * Math.PI)
+          ctx.arc(midX, varPos.y, 3, 0, 2 * Math.PI)
           ctx.fillStyle = '#374151'
           ctx.fill()
+
         } else {
           // 前のゲートからの入力（中間信号）
-          const connection = circuit.connections.find(conn => conn.toInput === inputIndex)
-          if (connection) {
-            const fromGate = circuit.gates.find(g => g.id === connection.from)
-            if (fromGate) {
-              let inputY
-              if (gate.inputs.length === 1) {
-                inputY = gateY
-              } else {
-                inputY = gateY - 15 + (inputIndex * 30)
-              }
-              
+          const sourceGate = circuit.gates.find(g => g.output === input);
+          if (sourceGate) {
               // ゲート間の接続
-              ctx.strokeStyle = '#374151'
-              ctx.lineWidth = 3
+              ctx.strokeStyle = '#dc2626' // Intermediate connections in red
+              ctx.lineWidth = 2
               ctx.beginPath()
-              ctx.moveTo(fromGate.x + 30, fromGate.y)
-              ctx.lineTo(gateX - 30, inputY)
-              ctx.stroke()
+              ctx.moveTo(sourceGate.x + 30, sourceGate.y)
               
-              // 接続点を描画
-              ctx.beginPath()
-              ctx.arc(gateX - 30, inputY, 3, 0, 2 * Math.PI)
-              ctx.fillStyle = '#dc2626'
-              ctx.fill()
-            }
+              const midX = sourceGate.x + (gateX - sourceGate.x) / 2;
+              ctx.lineTo(midX, sourceGate.y);
+              ctx.lineTo(midX, inputY);
+              ctx.lineTo(gateX - 30, inputY);
+              ctx.stroke()
           }
         }
       })
@@ -1127,13 +1038,7 @@ export class LogicLearning {
         ctx.font = 'bold 18px Arial'
         ctx.fillText('Y', canvas.width - 60, gateY)
       } else {
-        // 中間出力
-        ctx.strokeStyle = '#374151'
-        ctx.lineWidth = 2
-        ctx.beginPath()
-        ctx.moveTo(gateX + 30, gateY)
-        ctx.lineTo(gateX + 60, gateY)
-        ctx.stroke()
+        // 中間出力 (no need to draw, it's implicitly connected)
       }
     })
   }
@@ -1163,38 +1068,11 @@ export class LogicLearning {
   }
 
   extractVariables(expression) {
-    console.log('🔍 DEBUG extractVariables called with:', expression)
-    console.log('🔍 Expression type:', typeof expression)
-    console.log('🔍 Expression length:', expression.length)
-    
-    // 🚨 修正: 演算子を先に除去してから変数を抽出
-    let cleanExpression = expression.toUpperCase()
-    
-    // 演算子を一時的に置換
-    cleanExpression = cleanExpression.replace(/\bAND\b/g, ' ___AND___ ')
-    cleanExpression = cleanExpression.replace(/\bOR\b/g, ' ___OR___ ')
-    cleanExpression = cleanExpression.replace(/\bXOR\b/g, ' ___XOR___ ')
-    cleanExpression = cleanExpression.replace(/\bNOT\b/g, ' ___NOT___ ')
-    
-    console.log('🔍 After operator replacement:', cleanExpression)
-    
-    // 変数のみを抽出（単語境界を使用）
-    const matches = cleanExpression.match(/\b[A-D]\b/g)
-    console.log('🔍 Raw matches after cleaning:', matches)
-    
-    const result = [...new Set(matches || [])].sort()
-    console.log('🔍 Final extracted variables:', result)
-    
-    // 🚨 重要: A AND B の場合、Dが含まれていたらエラー
-    if (expression.trim().toUpperCase() === 'A AND B' && result.includes('D')) {
-      console.error('🚨 CRITICAL BUG: D found in "A AND B" expression!')
-      console.error('🚨 This should NEVER happen!')
-      console.error('🚨 Expression:', expression)
-      console.error('🚨 Matches:', matches)
-      console.error('🚨 Result:', result)
+    const matches = expression.toUpperCase().match(/\b[A-D]\b/g);
+    if (!matches) {
+        return [];
     }
-    
-    return result
+    return [...new Set(matches)].sort();
   }
 
   drawAndGate(ctx, x, y) {
