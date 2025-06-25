@@ -1468,23 +1468,92 @@ export class CompressionTool {
       return
     }
     
-    // SVGのサイズを設定
-    svg.setAttribute('width', '800')
-    svg.setAttribute('height', '500')
-    svg.setAttribute('viewBox', '0 0 800 500')
-    const width = 800
-    const height = 500
+    // 動的サイズ計算
+    const dimensions = this.calculateOptimalDimensions(stepData)
+    
+    // SVGのサイズを動的に設定
+    svg.setAttribute('width', dimensions.width)
+    svg.setAttribute('height', dimensions.height)
+    svg.setAttribute('viewBox', `0 0 ${dimensions.width} ${dimensions.height}`)
+    
+    // 親コンテナのサイズも調整
+    const container = svg.parentElement
+    if (container) {
+      container.style.minHeight = `${dimensions.height}px`
+      container.style.width = '100%'
+      container.style.overflow = 'auto'
+    }
     
     if (stepData.tree) {
       // 最終ステップ：完成した木を表示
-      this.drawCompleteTree(svg, stepData.tree, width, height)
+      this.drawCompleteTree(svg, stepData.tree, dimensions.width, dimensions.height)
     } else if (stepData.forestNodes) {
       // 中間ステップ：森の状態を表示
-      this.drawForestStage(svg, stepData.forestNodes, stepData.highlightPair, stepData.newParent, width, height)
+      this.drawForestStage(svg, stepData.forestNodes, stepData.highlightPair, stepData.newParent, dimensions.width, dimensions.height)
     } else if (stepData.nodes) {
       // 初期ステップ：個別ノードを表示
-      this.drawInitialNodes(svg, stepData.nodes, width, height)
+      this.drawInitialNodes(svg, stepData.nodes, dimensions.width, dimensions.height)
     }
+  }
+
+  calculateOptimalDimensions(stepData) {
+    const nodeRadius = 30
+    const minSpacing = 60
+    const levelHeight = 90
+    const padding = nodeRadius + 20  // ノード半径 + 余白
+    
+    let maxDepth = 0
+    let maxWidth = 0
+    
+    if (stepData.tree) {
+      // 完成した木の場合
+      maxDepth = this.getTreeDepth(stepData.tree)
+      maxWidth = this.calculateTreeWidthForDisplay(stepData.tree)
+    } else if (stepData.forestNodes) {
+      // 森の状態の場合
+      maxDepth = Math.max(...stepData.forestNodes.map(tree => this.getTreeDepth(tree)))
+      const totalWidth = stepData.forestNodes.reduce((sum, tree) => {
+        return sum + this.calculateTreeWidthForDisplay(tree)
+      }, 0)
+      const spacingWidth = (stepData.forestNodes.length - 1) * minSpacing
+      maxWidth = totalWidth + spacingWidth
+    } else if (stepData.nodes) {
+      // 初期ノードの場合
+      maxDepth = 0
+      maxWidth = stepData.nodes.length * (nodeRadius * 2 + minSpacing)
+    }
+    
+    // 最小・最大サイズの制限
+    const minWidth = 600
+    const maxWidthLimit = 1200
+    const minHeight = 400
+    const maxHeightLimit = 800
+    
+    const calculatedWidth = Math.max(minWidth, Math.min(maxWidthLimit, maxWidth + padding * 2))
+    const calculatedHeight = Math.max(minHeight, Math.min(maxHeightLimit, (maxDepth * levelHeight) + padding * 2 + 100))
+    
+    return {
+      width: calculatedWidth,
+      height: calculatedHeight,
+      padding: padding,
+      maxDepth: maxDepth
+    }
+  }
+
+  calculateTreeWidthForDisplay(tree) {
+    if (!tree) return 0
+    
+    // 葉ノードの場合
+    if (!tree.left && !tree.right) {
+      return 80  // ノード直径 + 最小余白
+    }
+    
+    // 内部ノードの場合、子の幅を計算
+    const leftWidth = tree.left ? this.calculateTreeWidthForDisplay(tree.left) : 0
+    const rightWidth = tree.right ? this.calculateTreeWidthForDisplay(tree.right) : 0
+    const minSpacing = 80
+    
+    return Math.max(leftWidth + rightWidth + minSpacing, 80)
   }
 
   drawInitialNodes(svg, nodes, width, height) {
@@ -1502,27 +1571,34 @@ export class CompressionTool {
   }
 
   drawForestStage(svg, forestNodes, highlightPair, newParent, width, height) {
-    // 森の各木を描画（上部から構築するため基準点を変更）
-    const baseY = height - 50  // 葉ノードの基準位置
+    // 森の各木を描画（境界チェック付き）
+    const nodeRadius = 30
+    const padding = nodeRadius + 20
+    const baseY = height - padding  // 下部マージンを考慮
     
     // 各木の幅を計算して適切な間隔を確保
-    const treeWidths = forestNodes.map(tree => this.calculateTreeWidth(tree))
+    const treeWidths = forestNodes.map(tree => this.calculateTreeWidthForDisplay(tree))
     const totalTreeWidth = treeWidths.reduce((sum, w) => sum + w, 0)
-    const availableWidth = width - 40  // 左右マージン20pxずつ
-    const minSpacing = 60  // 最小間隔
+    const availableWidth = width - (padding * 2)  // 左右パディング
+    const minSpacing = 80  // 最小間隔を増加
     const totalMinSpacing = (forestNodes.length - 1) * minSpacing
     
-    // 適応的スペーシングを計算
-    let spacing
-    if (totalTreeWidth + totalMinSpacing <= availableWidth) {
-      // 余裕がある場合は均等配置
-      spacing = (availableWidth - totalTreeWidth) / (forestNodes.length + 1)
-    } else {
-      // スペースが不足している場合は最小間隔を使用
-      spacing = minSpacing
+    // 全体がはみ出す場合のスケール調整
+    let scale = 1
+    if (totalTreeWidth + totalMinSpacing > availableWidth) {
+      scale = availableWidth / (totalTreeWidth + totalMinSpacing)
+      scale = Math.max(scale, 0.6)  // 最小スケール制限
     }
     
-    let currentX = 20 + treeWidths[0] / 2  // 左マージン + 最初の木の半分
+    // 適応的スペーシングを計算
+    let spacing = minSpacing * scale
+    if (totalTreeWidth * scale + totalMinSpacing * scale <= availableWidth) {
+      // 余裕がある場合は均等配置
+      spacing = Math.max(minSpacing * scale, 
+        (availableWidth - totalTreeWidth * scale) / (forestNodes.length + 1))
+    }
+    
+    let currentX = padding + (treeWidths[0] * scale) / 2  // 左パディング + 最初の木の半分
     
     forestNodes.forEach((tree, index) => {
       const isHighlighted = highlightPair && (
@@ -1530,14 +1606,17 @@ export class CompressionTool {
         this.isSameNode(tree, highlightPair.right)
       )
       
-      // 木の高さを計算して上部に配置
+      // 木の高さを計算して上部に配置（スケール考慮）
       const treeDepth = this.getTreeDepth(tree)
-      const treeTopY = baseY - (treeDepth * 80)  // 各レベル80px間隔（余白増加）
-      this.drawSubTreeFromTop(svg, tree, currentX, treeTopY, isHighlighted)
+      const levelHeight = 90 * scale
+      const treeTopY = Math.max(padding, baseY - (treeDepth * levelHeight))
+      
+      // 境界チェック付きで描画
+      this.drawSubTreeFromTopWithScale(svg, tree, currentX, treeTopY, isHighlighted, scale)
       
       // 次の木の位置を計算
       if (index < forestNodes.length - 1) {
-        currentX += treeWidths[index] / 2 + spacing + treeWidths[index + 1] / 2
+        currentX += (treeWidths[index] * scale) / 2 + spacing + (treeWidths[index + 1] * scale) / 2
       }
     })
     
@@ -1614,19 +1693,31 @@ export class CompressionTool {
   }
 
   drawSubTreeFromTop(svg, tree, centerX, topY, isHighlighted = false) {
-    // より美しい配置のために、事前に各ノードの位置を計算
-    const levelHeight = 90  // レベル間の統一された縦幅
-    const nodePositions = this.calculateBeautifulNodePositions(tree, centerX, topY, levelHeight)
-    
-    // 全ノードを描画
-    this.drawBeautifulNodes(svg, nodePositions, isHighlighted)
-    
-    // 美しい接続線を描画
-    this.drawBeautifulConnections(svg, nodePositions, isHighlighted)
+    this.drawSubTreeFromTopWithScale(svg, tree, centerX, topY, isHighlighted, 1)
   }
 
-  calculateBeautifulNodePositions(tree, rootX, rootY, levelHeight) {
+  drawSubTreeFromTopWithScale(svg, tree, centerX, topY, isHighlighted = false, scale = 1) {
+    // SVGのサイズを取得
+    const svgRect = svg.getBoundingClientRect()
+    const containerWidth = parseFloat(svg.getAttribute('width')) || svgRect.width || 800
+    const containerHeight = parseFloat(svg.getAttribute('height')) || svgRect.height || 500
+    
+    // より美しい配置のために、事前に各ノードの位置を計算
+    const levelHeight = 90 * scale  // レベル間の統一された縦幅（スケール適用）
+    const nodePositions = this.calculateBeautifulNodePositionsWithScale(
+      tree, centerX, topY, levelHeight, containerWidth, containerHeight, scale
+    )
+    
+    // 全ノードを描画
+    this.drawBeautifulNodesWithScale(svg, nodePositions, isHighlighted, scale)
+    
+    // 美しい接続線を描画
+    this.drawBeautifulConnectionsWithScale(svg, nodePositions, isHighlighted, scale)
+  }
+
+  calculateBeautifulNodePositionsWithScale(tree, rootX, rootY, levelHeight, containerWidth, containerHeight, scale) {
     const positions = new Map()
+    const nodeRadius = 30 * scale
     
     // 各レベルの葉の数を計算してバランスの良い配置を決定
     const getLeafCount = (node) => {
@@ -1639,33 +1730,157 @@ export class CompressionTool {
       if (!node) return
       
       const leafCount = getLeafCount(node)
-      const spacing = Math.max(60, (rightBound - leftBound) / Math.max(leafCount, 1))
+      const spacing = Math.max(80 * scale, (rightBound - leftBound) / Math.max(leafCount, 1))
+      
+      // 境界チェック：ノードが表示領域内に収まるか確認
+      const adjustedX = this.ensureWithinBounds(x, nodeRadius, containerWidth - nodeRadius)
+      const adjustedY = this.ensureWithinBounds(y, nodeRadius, containerHeight - nodeRadius)
       
       // 現在のノード位置を設定
-      positions.set(node, { x, y, level, leafCount })
+      positions.set(node, { x: adjustedX, y: adjustedY, level, leafCount })
       
       if (node.left || node.right) {
         const leftLeafCount = getLeafCount(node.left)
         const rightLeafCount = getLeafCount(node.right)
-        const totalLeafCount = leftLeafCount + rightLeafCount
         
         if (node.left) {
-          const leftX = x - (spacing * rightLeafCount / 2)
-          const leftY = y + levelHeight
-          calculatePositions(node.left, leftX, leftY, level + 1, leftBound, x)
+          const leftX = adjustedX - (spacing * rightLeafCount / 2)
+          const leftY = adjustedY + levelHeight
+          calculatePositions(node.left, leftX, leftY, level + 1, leftBound, adjustedX)
         }
         
         if (node.right) {
-          const rightX = x + (spacing * leftLeafCount / 2)
-          const rightY = y + levelHeight
-          calculatePositions(node.right, rightX, rightY, level + 1, x, rightBound)
+          const rightX = adjustedX + (spacing * leftLeafCount / 2)
+          const rightY = adjustedY + levelHeight
+          calculatePositions(node.right, rightX, rightY, level + 1, adjustedX, rightBound)
         }
       }
     }
     
-    // 初期計算範囲を設定
-    const treeWidth = this.calculateTreeWidth(tree)
-    calculatePositions(tree, rootX, rootY, 0, rootX - treeWidth/2, rootX + treeWidth/2)
+    // 初期計算範囲を設定（パディングを考慮）
+    const padding = nodeRadius + 20
+    const availableWidth = containerWidth - (padding * 2)
+    const startX = containerWidth / 2
+    const startY = Math.max(padding, rootY)
+    
+    calculatePositions(tree, startX, startY, 0, padding, containerWidth - padding)
+    
+    return positions
+  }
+
+  drawBeautifulNodesWithScale(svg, positions, isHighlighted, scale) {
+    positions.forEach((pos, node) => {
+      this.drawBeautifulNodeWithScale(svg, node, pos.x, pos.y, isHighlighted, false, scale)
+    })
+  }
+
+  drawBeautifulConnectionsWithScale(svg, positions, isHighlighted, scale) {
+    positions.forEach((pos, node) => {
+      if (node.left) {
+        const parentPos = positions.get(node)
+        const childPos = positions.get(node.left)
+        this.drawBeautifulConnectionWithScale(svg, parentPos.x, parentPos.y, childPos.x, childPos.y, isHighlighted, '0', scale)
+      }
+      if (node.right) {
+        const parentPos = positions.get(node)
+        const childPos = positions.get(node.right)
+        this.drawBeautifulConnectionWithScale(svg, parentPos.x, parentPos.y, childPos.x, childPos.y, isHighlighted, '1', scale)
+      }
+    })
+  }
+
+  calculateBeautifulNodePositions(tree, rootX, rootY, levelHeight, containerWidth, containerHeight) {
+    const positions = new Map()
+    const nodeRadius = 30
+    
+    // 各レベルの葉の数を計算してバランスの良い配置を決定
+    const getLeafCount = (node) => {
+      if (!node) return 0
+      if (!node.left && !node.right) return 1
+      return getLeafCount(node.left) + getLeafCount(node.right)
+    }
+    
+    const calculatePositions = (node, x, y, level, leftBound, rightBound) => {
+      if (!node) return
+      
+      const leafCount = getLeafCount(node)
+      const spacing = Math.max(80, (rightBound - leftBound) / Math.max(leafCount, 1))
+      
+      // 境界チェック：ノードが表示領域内に収まるか確認
+      const adjustedX = this.ensureWithinBounds(x, nodeRadius, containerWidth - nodeRadius)
+      const adjustedY = this.ensureWithinBounds(y, nodeRadius, containerHeight - nodeRadius)
+      
+      // 現在のノード位置を設定
+      positions.set(node, { x: adjustedX, y: adjustedY, level, leafCount })
+      
+      if (node.left || node.right) {
+        const leftLeafCount = getLeafCount(node.left)
+        const rightLeafCount = getLeafCount(node.right)
+        
+        if (node.left) {
+          const leftX = adjustedX - (spacing * rightLeafCount / 2)
+          const leftY = adjustedY + levelHeight
+          calculatePositions(node.left, leftX, leftY, level + 1, leftBound, adjustedX)
+        }
+        
+        if (node.right) {
+          const rightX = adjustedX + (spacing * leftLeafCount / 2)
+          const rightY = adjustedY + levelHeight
+          calculatePositions(node.right, rightX, rightY, level + 1, adjustedX, rightBound)
+        }
+      }
+    }
+    
+    // 初期計算範囲を設定（パディングを考慮）
+    const padding = nodeRadius + 20
+    const availableWidth = containerWidth - (padding * 2)
+    const startX = containerWidth / 2
+    const startY = Math.max(padding, rootY)
+    
+    calculatePositions(tree, startX, startY, 0, padding, containerWidth - padding)
+    
+    // 全体の境界チェックとスケール調整
+    return this.validateAndAdjustPositions(positions, containerWidth, containerHeight, nodeRadius)
+  }
+
+  ensureWithinBounds(value, minBound, maxBound) {
+    return Math.max(minBound, Math.min(maxBound, value))
+  }
+
+  validateAndAdjustPositions(positions, containerWidth, containerHeight, nodeRadius) {
+    // 全ノードの境界を計算
+    let minX = Infinity, maxX = -Infinity
+    let minY = Infinity, maxY = -Infinity
+    
+    positions.forEach((pos) => {
+      minX = Math.min(minX, pos.x - nodeRadius)
+      maxX = Math.max(maxX, pos.x + nodeRadius)
+      minY = Math.min(minY, pos.y - nodeRadius)
+      maxY = Math.max(maxY, pos.y + nodeRadius)
+    })
+    
+    const actualWidth = maxX - minX
+    const actualHeight = maxY - minY
+    const padding = 20
+    
+    // はみ出しチェック
+    if (actualWidth > containerWidth - padding * 2 || actualHeight > containerHeight - padding * 2) {
+      // スケール調整が必要
+      const scaleX = (containerWidth - padding * 2) / actualWidth
+      const scaleY = (containerHeight - padding * 2) / actualHeight
+      const scale = Math.min(scaleX, scaleY, 1) // 縮小のみ
+      
+      const centerX = containerWidth / 2
+      const centerY = containerHeight / 2
+      const originalCenterX = (minX + maxX) / 2
+      const originalCenterY = (minY + maxY) / 2
+      
+      // スケール調整と中央寄せ
+      positions.forEach((pos, node) => {
+        pos.x = centerX + (pos.x - originalCenterX) * scale
+        pos.y = centerY + (pos.y - originalCenterY) * scale
+      })
+    }
     
     return positions
   }
@@ -1691,8 +1906,8 @@ export class CompressionTool {
     })
   }
 
-  drawBeautifulConnection(svg, x1, y1, x2, y2, isHighlighted, bitLabel) {
-    const radius = 30  // ノードの半径
+  drawBeautifulConnectionWithScale(svg, x1, y1, x2, y2, isHighlighted, bitLabel, scale = 1) {
+    const radius = 30 * scale  // ノードの半径（スケール適用）
     
     // ベジェ曲線の制御点を計算
     const controlY = y1 + (y2 - y1) * 0.6  // 曲線の深さ
@@ -1718,28 +1933,28 @@ export class CompressionTool {
     
     svg.appendChild(path)
     
-    // ビットラベル（0/1）を美しく配置
+    // ビットラベル（0/1）を美しく配置（スケール適用）
     const midX = (x1 + x2) / 2
-    const midY = (y1 + y2) / 2 - 10
+    const midY = (y1 + y2) / 2 - (10 * scale)
     
     const label = document.createElementNS('http://www.w3.org/2000/svg', 'text')
     label.setAttribute('x', midX)
     label.setAttribute('y', midY)
     label.setAttribute('text-anchor', 'middle')
     label.setAttribute('font-family', 'Inter, sans-serif')
-    label.setAttribute('font-size', '14')
+    label.setAttribute('font-size', Math.max(10, 14 * scale))
     label.setAttribute('font-weight', '600')
     label.setAttribute('fill', bitLabel === '0' ? '#dc2626' : '#16a34a')
     label.textContent = bitLabel
     
-    // ラベルの背景円
+    // ラベルの背景円（スケール適用）
     const labelBg = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
     labelBg.setAttribute('cx', midX)
-    labelBg.setAttribute('cy', midY - 5)
-    labelBg.setAttribute('r', '12')
+    labelBg.setAttribute('cy', midY - (5 * scale))
+    labelBg.setAttribute('r', Math.max(8, 12 * scale))
     labelBg.setAttribute('fill', 'white')
     labelBg.setAttribute('stroke', bitLabel === '0' ? '#dc2626' : '#16a34a')
-    labelBg.setAttribute('stroke-width', '1.5')
+    labelBg.setAttribute('stroke-width', Math.max(1, 1.5 * scale))
     labelBg.setAttribute('opacity', '0.95')
     
     svg.appendChild(labelBg)
@@ -1771,8 +1986,8 @@ export class CompressionTool {
     this.drawSubTreeFromTop(svg, tree, centerX, topY, false)
   }
 
-  drawBeautifulNode(svg, node, x, y, isHighlighted = false, isDashed = false) {
-    const radius = 30
+  drawBeautifulNodeWithScale(svg, node, x, y, isHighlighted = false, isDashed = false, scale = 1) {
+    const radius = 30 * scale
     
     // グラデーション定義を作成
     const defs = svg.querySelector('defs') || svg.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'defs'))
@@ -1961,6 +2176,14 @@ export class CompressionTool {
       svg.appendChild(charLabel)
       svg.appendChild(freqLabel)
     }
+  }
+
+  drawBeautifulNode(svg, node, x, y, isHighlighted = false, isDashed = false) {
+    this.drawBeautifulNodeWithScale(svg, node, x, y, isHighlighted, isDashed, 1)
+  }
+
+  drawBeautifulConnection(svg, x1, y1, x2, y2, isHighlighted, bitLabel) {
+    this.drawBeautifulConnectionWithScale(svg, x1, y1, x2, y2, isHighlighted, bitLabel, 1)
   }
 
   drawTreeNode(svg, node, x, y, radius, isHighlighted = false, isDashed = false) {
