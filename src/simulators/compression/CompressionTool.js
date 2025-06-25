@@ -1596,27 +1596,45 @@ export class CompressionTool {
     
     const nodeRadius = 25
     
-    // 新しいMap形式の事前計算位置を使用
+    // 事前計算位置を使用（配列形式を優先）
     nodes.forEach((node, index) => {
       let finalPos = null
       
-      if (this.FINAL_POSITIONS instanceof Map) {
-        // 新しいMap形式
-        finalPos = this.FINAL_POSITIONS.get(node)
-      } else {
-        // 従来形式（後方互換性）
+      // 1. 配列形式での検索（最も信頼性が高い）
+      if (this.FINAL_POSITIONS_ARRAY && this.FINAL_POSITIONS_ARRAY[node.char]) {
+        finalPos = this.FINAL_POSITIONS_ARRAY[node.char]
+        console.log(`✅ 配列形式で発見: ${node.char}(${node.freq})`)
+      }
+      // 2. Map形式での検索（フォールバック）
+      else if (this.FINAL_POSITIONS instanceof Map) {
+        for (const [mapNode, position] of this.FINAL_POSITIONS.entries()) {
+          if (mapNode.char === node.char && mapNode.freq === node.freq) {
+            finalPos = position
+            console.log(`✅ Map形式で発見: ${node.char}(${node.freq})`)
+            break
+          }
+        }
+      }
+      // 3. 従来形式（古い互換性）
+      else if (this.FINAL_POSITIONS && this.FINAL_POSITIONS[node.char]) {
         finalPos = this.FINAL_POSITIONS[node.char]
+        console.log(`✅ 従来形式で発見: ${node.char}(${node.freq})`)
       }
       
       if (!finalPos) {
         console.error(`❌ 事前計算位置が見つかりません: ${node.char}`)
+        console.log(`🔍 デバッグ情報:`)
+        console.log(`   - FINAL_POSITIONS_ARRAY exists:`, !!this.FINAL_POSITIONS_ARRAY)
+        console.log(`   - FINAL_POSITIONS exists:`, !!this.FINAL_POSITIONS)
+        console.log(`   - FINAL_POSITIONS type:`, typeof this.FINAL_POSITIONS)
+        
         // フォールバック：均等配置
         const spacing = width / (nodes.length + 1)
         finalPos = { x: spacing * (index + 1), y: height - 100 }
         console.log(`🔄 フォールバック位置使用: (${finalPos.x}, ${finalPos.y})`)
       }
       
-      console.log(`🎯 事前計算位置使用 ${node.char}(${node.freq}): (${finalPos.x}, ${finalPos.y})`)
+      console.log(`🎯 最終位置使用 ${node.char}(${node.freq}): (${finalPos.x}, ${finalPos.y})`)
       
       this.drawPreCalculatedNode(svg, node, finalPos.x, finalPos.y, nodeRadius, index, false)
     })
@@ -3268,10 +3286,23 @@ export class CompressionTool {
     }
     
     // 2. レベルベース位置計算システム
-    this.FINAL_POSITIONS = this.calculateLevelBasedPositions(fullTree, CONTAINER_WIDTH, CONTAINER_HEIGHT)
+    const positionMap = this.calculateLevelBasedPositions(fullTree, CONTAINER_WIDTH, CONTAINER_HEIGHT)
+    
+    // 3. Map形式と配列形式両方で保存（後方互換性）
+    this.FINAL_POSITIONS = positionMap
+    this.FINAL_POSITIONS_ARRAY = {}
+    
+    // 文字ベースのアクセス用に配列形式も作成
+    positionMap.forEach((position, node) => {
+      if (node.char) {
+        this.FINAL_POSITIONS_ARRAY[node.char] = position
+        console.log(`📍 保存: ${node.char}(${node.freq}) → (${position.x.toFixed(1)}, ${position.y.toFixed(1)})`)
+      }
+    })
     
     console.log('✅ === 完全レベルベース位置計算完了 ===')
-    console.log('📍 全ポジション:', this.FINAL_POSITIONS)
+    console.log('📍 Map形式ポジション数:', positionMap.size)
+    console.log('📍 配列形式ポジション:', this.FINAL_POSITIONS_ARRAY)
   }
 
   buildFullHuffmanTree(frequencies) {
@@ -3449,18 +3480,30 @@ export class CompressionTool {
   getNodeFinalPosition(node) {
     if (!node) return { x: 0, y: 0 }
     
-    // レベルベースシステムではMap検索
-    if (this.FINAL_POSITIONS instanceof Map) {
-      const pos = this.FINAL_POSITIONS.get(node)
-      return pos || { x: 0, y: 0 }
+    // 1. 配列形式での検索（最優先）
+    if (this.FINAL_POSITIONS_ARRAY && node.char && this.FINAL_POSITIONS_ARRAY[node.char]) {
+      return this.FINAL_POSITIONS_ARRAY[node.char]
     }
     
-    // 従来システム（後方互換性）
-    if (node.char) {
-      return this.FINAL_POSITIONS[node.char] || { x: 0, y: 0 }
-    } else {
-      return this.FINAL_POSITIONS[node.id] || { x: 0, y: 0 }
+    // 2. Map形式での検索
+    if (this.FINAL_POSITIONS instanceof Map) {
+      for (const [mapNode, position] of this.FINAL_POSITIONS.entries()) {
+        if (mapNode.char === node.char && mapNode.freq === node.freq) {
+          return position
+        }
+      }
     }
+    
+    // 3. 従来システム（後方互換性）
+    if (this.FINAL_POSITIONS && typeof this.FINAL_POSITIONS === 'object' && !(this.FINAL_POSITIONS instanceof Map)) {
+      if (node.char) {
+        return this.FINAL_POSITIONS[node.char] || { x: 0, y: 0 }
+      } else {
+        return this.FINAL_POSITIONS[node.id] || { x: 0, y: 0 }
+      }
+    }
+    
+    return { x: 0, y: 0 }
   }
 
   cleanup() {
