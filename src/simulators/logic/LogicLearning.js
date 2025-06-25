@@ -560,72 +560,210 @@ export class LogicLearning {
   }
 
   displayCircuitDiagram(expression) {
-    // 簡単な回路図表示（テキストベース）
     const circuitDisplay = document.getElementById('circuit-display')
+    
+    // 論理式を解析してゲート構成を取得
+    const circuit = this.parseLogicExpression(expression)
     
     let circuitHtml = `
       <div class="space-y-4">
         <div class="bg-white p-4 rounded border">
           <h4 class="font-semibold text-gray-800 mb-3">論理式: ${expression}</h4>
-          <div class="space-y-3">
+          <div class="space-y-2">
+            <div class="text-sm text-gray-600">使用されるゲート:</div>
+            <div class="flex flex-wrap gap-2">
     `
     
-    // 基本的な回路図要素を生成
-    if (expression.includes('AND')) {
+    // 使用されるゲートを表示
+    circuit.gates.forEach(gate => {
+      const gateInfo = this.getGateInfo(gate.type)
       circuitHtml += `
-        <div class="flex items-center space-x-2 p-2 bg-blue-50 rounded">
-          <div class="w-12 h-8 bg-blue-200 rounded flex items-center justify-center text-xs font-bold">AND</div>
-          <span class="text-sm">論理積ゲート</span>
+        <div class="flex items-center space-x-2 px-2 py-1 ${gateInfo.bgClass} rounded text-xs">
+          <div class="w-8 h-6 ${gateInfo.colorClass} rounded flex items-center justify-center font-bold">${gateInfo.symbol}</div>
+          <span>${gateInfo.name}</span>
         </div>
       `
-    }
-    
-    if (expression.includes('OR')) {
-      circuitHtml += `
-        <div class="flex items-center space-x-2 p-2 bg-green-50 rounded">
-          <div class="w-12 h-8 bg-green-200 rounded flex items-center justify-center text-xs font-bold">OR</div>
-          <span class="text-sm">論理和ゲート</span>
-        </div>
-      `
-    }
-    
-    if (expression.includes('NOT')) {
-      circuitHtml += `
-        <div class="flex items-center space-x-2 p-2 bg-red-50 rounded">
-          <div class="w-12 h-8 bg-red-200 rounded flex items-center justify-center text-xs font-bold">NOT</div>
-          <span class="text-sm">否定ゲート</span>
-        </div>
-      `
-    }
-    
-    if (expression.includes('XOR')) {
-      circuitHtml += `
-        <div class="flex items-center space-x-2 p-2 bg-purple-50 rounded">
-          <div class="w-12 h-8 bg-purple-200 rounded flex items-center justify-center text-xs font-bold">XOR</div>
-          <span class="text-sm">排他的論理和ゲート</span>
-        </div>
-      `
-    }
+    })
     
     circuitHtml += `
+            </div>
           </div>
         </div>
         <div class="text-center">
-          <canvas id="circuit-canvas" width="400" height="200" class="border border-gray-300 rounded bg-white"></canvas>
+          <canvas id="circuit-canvas" width="600" height="300" class="border border-gray-300 rounded bg-white max-w-full"></canvas>
         </div>
         <div class="text-sm text-gray-600 text-center">
-          より詳細な回路図は「回路設計」タブで作成できます
+          論理式に基づいて自動生成された回路図
         </div>
       </div>
     `
     
     circuitDisplay.innerHTML = circuitHtml
     
-    // 簡単なキャンバス描画
-    this.drawSimpleCircuit(expression)
+    // 詳細な回路図を描画
+    this.drawLogicCircuit(circuit)
   }
 
-  drawSimpleCircuit(expression) {
+  parseLogicExpression(expression) {
+    // 論理式を解析して回路構造を構築
+    const variables = this.extractVariables(expression)
+    const gates = []
+    const connections = []
+    
+    let normalizedExpr = expression.toUpperCase().trim()
+    let gateId = 0
+    
+    // より詳細なパターンマッチング
+    if (normalizedExpr.includes(' AND ') && normalizedExpr.includes(' OR ')) {
+      // AND と OR が混在している場合
+      
+      // "A AND B OR B" のような場合を処理
+      const orParts = normalizedExpr.split(' OR ')
+      
+      if (orParts.length === 2) {
+        const leftPart = orParts[0].trim()
+        const rightPart = orParts[1].trim()
+        
+        if (leftPart.includes(' AND ')) {
+          // 左側がAND演算の場合
+          const andParts = leftPart.split(' AND ').map(part => part.trim())
+          
+          // ANDゲートを追加
+          const andGate = {
+            id: `gate_${gateId++}`,
+            type: 'AND',
+            inputs: andParts,
+            x: 200,
+            y: 110,
+            output: `and_out_1`
+          }
+          gates.push(andGate)
+          
+          // ORゲートを追加
+          const orGate = {
+            id: `gate_${gateId++}`,
+            type: 'OR',
+            inputs: [andGate.output, rightPart],
+            x: 350,
+            y: 140,
+            output: 'Y'
+          }
+          gates.push(orGate)
+          
+          // 接続を定義
+          connections.push({
+            from: andGate.id,
+            to: orGate.id,
+            fromOutput: andGate.output,
+            toInput: 0
+          })
+        }
+      }
+    } else if (normalizedExpr.includes(' AND ')) {
+      // ANDのみの場合
+      const andParts = normalizedExpr.split(' AND ').map(part => part.trim())
+      const andGate = {
+        id: `gate_${gateId++}`,
+        type: 'AND',
+        inputs: andParts,
+        x: 250,
+        y: 150,
+        output: 'Y'
+      }
+      gates.push(andGate)
+    } else if (normalizedExpr.includes(' OR ')) {
+      // ORのみの場合
+      const orParts = normalizedExpr.split(' OR ').map(part => part.trim())
+      const orGate = {
+        id: `gate_${gateId++}`,
+        type: 'OR',
+        inputs: orParts,
+        x: 250,
+        y: 150,
+        output: 'Y'
+      }
+      gates.push(orGate)
+    } else if (normalizedExpr.includes(' XOR ')) {
+      // XORの場合
+      const xorParts = normalizedExpr.split(' XOR ').map(part => part.trim())
+      const xorGate = {
+        id: `gate_${gateId++}`,
+        type: 'XOR',
+        inputs: xorParts,
+        x: 250,
+        y: 150,
+        output: 'Y'
+      }
+      gates.push(xorGate)
+    } else if (normalizedExpr.includes('NOT ')) {
+      // NOTの場合
+      const notInput = normalizedExpr.replace('NOT ', '').trim()
+      const notGate = {
+        id: `gate_${gateId++}`,
+        type: 'NOT',
+        inputs: [notInput],
+        x: 250,
+        y: 150,
+        output: 'Y'
+      }
+      gates.push(notGate)
+    } else {
+      // 単一変数の場合
+      gates.push({
+        id: `gate_${gateId++}`,
+        type: 'BUFFER',
+        inputs: [normalizedExpr],
+        x: 250,
+        y: 150,
+        output: 'Y'
+      })
+    }
+    
+    return {
+      variables,
+      gates,
+      connections,
+      expression: normalizedExpr
+    }
+  }
+
+  getGateInfo(gateType) {
+    const gateTypes = {
+      'AND': {
+        name: 'ANDゲート',
+        symbol: '&',
+        bgClass: 'bg-blue-50',
+        colorClass: 'bg-blue-200 text-blue-800'
+      },
+      'OR': {
+        name: 'ORゲート', 
+        symbol: '≥1',
+        bgClass: 'bg-green-50',
+        colorClass: 'bg-green-200 text-green-800'
+      },
+      'NOT': {
+        name: 'NOTゲート',
+        symbol: '¬',
+        bgClass: 'bg-red-50',
+        colorClass: 'bg-red-200 text-red-800'
+      },
+      'XOR': {
+        name: 'XORゲート',
+        symbol: '⊕',
+        bgClass: 'bg-purple-50',
+        colorClass: 'bg-purple-200 text-purple-800'
+      },
+      'BUFFER': {
+        name: 'バッファゲート',
+        symbol: '1',
+        bgClass: 'bg-gray-50',
+        colorClass: 'bg-gray-200 text-gray-800'
+      }
+    }
+    return gateTypes[gateType] || gateTypes['AND']
+  }
+
+  drawLogicCircuit(circuit) {
     const canvas = document.getElementById('circuit-canvas')
     if (!canvas) return
     
@@ -633,58 +771,159 @@ export class LogicLearning {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     
     // 背景を設定
-    ctx.fillStyle = '#f9fafb'
+    ctx.fillStyle = '#f8fafc'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
     
-    // 簡単な回路図を描画
+    // 描画設定
     ctx.strokeStyle = '#374151'
     ctx.lineWidth = 2
     ctx.font = '14px Arial'
     ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
     
-    // 入力端子
-    const variables = this.extractVariables(expression)
-    const startY = 50
-    const spacing = Math.min(40, 120 / variables.length)
+    // 入力変数を描画
+    const inputX = 50
+    const inputSpacing = 60
+    const startY = 80
     
-    variables.forEach((variable, index) => {
-      const y = startY + index * spacing
+    circuit.variables.forEach((variable, index) => {
+      const y = startY + index * inputSpacing
       
-      // 入力線
+      // 入力端子の円
       ctx.beginPath()
-      ctx.moveTo(50, y)
-      ctx.lineTo(100, y)
+      ctx.arc(inputX, y, 8, 0, 2 * Math.PI)
+      ctx.fillStyle = '#e5e7eb'
+      ctx.fill()
       ctx.stroke()
       
       // 変数ラベル
       ctx.fillStyle = '#1f2937'
-      ctx.fillText(variable, 30, y + 5)
+      ctx.fillText(variable, inputX - 25, y)
+      
+      // 入力線を延長
+      ctx.beginPath()
+      ctx.moveTo(inputX + 8, y)
+      ctx.lineTo(inputX + 40, y)
+      ctx.stroke()
     })
     
-    // 基本的なゲート記号
-    let gateX = 150
-    if (expression.includes('AND')) {
-      this.drawAndGate(ctx, gateX, 100)
-      gateX += 80
-    }
-    if (expression.includes('OR')) {
-      this.drawOrGate(ctx, gateX, 100)
-      gateX += 80
-    }
-    if (expression.includes('NOT')) {
-      this.drawNotGate(ctx, gateX, 100)
-      gateX += 60
-    }
+    // ゲートを描画
+    circuit.gates.forEach((gate, index) => {
+      const gateX = gate.x
+      const gateY = gate.y
+      
+      // ゲートの入力線を描画
+      gate.inputs.forEach((input, inputIndex) => {
+        if (circuit.variables.includes(input)) {
+          // 変数からの入力
+          const varIndex = circuit.variables.indexOf(input)
+          const varY = startY + varIndex * inputSpacing
+          
+          // 入力端子の位置を計算
+          let inputY
+          if (gate.inputs.length === 1) {
+            inputY = gateY
+          } else {
+            inputY = gateY - 10 + (inputIndex * 20)
+          }
+          
+          // 配線の描画
+          ctx.beginPath()
+          ctx.moveTo(inputX + 40, varY)
+          
+          // 直接接続できる場合
+          if (Math.abs(varY - inputY) < 10) {
+            ctx.lineTo(gateX - 30, inputY)
+          } else {
+            // 垂直線が必要な場合
+            const midX = gateX - 80
+            ctx.lineTo(midX, varY)
+            ctx.lineTo(midX, inputY)
+            ctx.lineTo(gateX - 30, inputY)
+          }
+          ctx.stroke()
+          
+          // 接続点を描画
+          ctx.beginPath()
+          ctx.arc(gateX - 30, inputY, 2, 0, 2 * Math.PI)
+          ctx.fillStyle = '#374151'
+          ctx.fill()
+        } else {
+          // 前のゲートからの入力（中間信号）
+          const connection = circuit.connections.find(conn => conn.toInput === inputIndex)
+          if (connection) {
+            const fromGate = circuit.gates.find(g => g.id === connection.from)
+            if (fromGate) {
+              let inputY
+              if (gate.inputs.length === 1) {
+                inputY = gateY
+              } else {
+                inputY = gateY - 10 + (inputIndex * 20)
+              }
+              
+              // ゲート間の接続
+              ctx.beginPath()
+              ctx.moveTo(fromGate.x + 30, fromGate.y)
+              ctx.lineTo(gateX - 30, inputY)
+              ctx.stroke()
+              
+              // 接続点を描画
+              ctx.beginPath()
+              ctx.arc(gateX - 30, inputY, 2, 0, 2 * Math.PI)
+              ctx.fillStyle = '#374151'
+              ctx.fill()
+            }
+          }
+        }
+      })
+      
+      // ゲート本体を描画
+      this.drawGateSymbol(ctx, gate.type, gateX, gateY)
+      
+      // 出力線を描画
+      if (gate.output === 'Y') {
+        // 最終出力
+        ctx.beginPath()
+        ctx.moveTo(gateX + 30, gateY)
+        ctx.lineTo(canvas.width - 80, gateY)
+        ctx.stroke()
+        
+        // 出力端子
+        ctx.beginPath()
+        ctx.arc(canvas.width - 80, gateY, 8, 0, 2 * Math.PI)
+        ctx.fillStyle = '#fef3c7'
+        ctx.fill()
+        ctx.stroke()
+        
+        // 出力ラベル
+        ctx.fillStyle = '#1f2937'
+        ctx.fillText('Y', canvas.width - 50, gateY)
+      }
+    })
+  }
+
+  drawGateSymbol(ctx, gateType, x, y) {
+    ctx.fillStyle = '#ffffff'
+    ctx.strokeStyle = '#374151'
+    ctx.lineWidth = 2
     
-    // 出力線
-    ctx.beginPath()
-    ctx.moveTo(gateX, 100)
-    ctx.lineTo(350, 100)
-    ctx.stroke()
-    
-    // 出力ラベル
-    ctx.fillStyle = '#1f2937'
-    ctx.fillText('Y', 370, 105)
+    switch (gateType) {
+      case 'AND':
+        this.drawAndGate(ctx, x, y)
+        break
+      case 'OR':
+        this.drawOrGate(ctx, x, y)
+        break
+      case 'NOT':
+        this.drawNotGate(ctx, x, y)
+        break
+      case 'XOR':
+        this.drawXorGate(ctx, x, y)
+        break
+      case 'BUFFER':
+        this.drawBufferGate(ctx, x, y)
+        break
+    }
   }
 
   extractVariables(expression) {
@@ -693,45 +932,99 @@ export class LogicLearning {
   }
 
   drawAndGate(ctx, x, y) {
+    // AND ゲートの形状（D型）
+    ctx.fillStyle = '#ffffff'
     ctx.beginPath()
-    ctx.arc(x + 20, y, 15, -Math.PI/2, Math.PI/2)
-    ctx.lineTo(x, y + 15)
-    ctx.lineTo(x, y - 15)
+    ctx.moveTo(x - 30, y - 20)
+    ctx.lineTo(x, y - 20)
+    ctx.arc(x, y, 20, -Math.PI/2, Math.PI/2)
+    ctx.lineTo(x - 30, y + 20)
     ctx.closePath()
-    ctx.stroke()
-    ctx.fillStyle = '#dbeafe'
     ctx.fill()
+    ctx.stroke()
+    
+    // ANDシンボル
     ctx.fillStyle = '#1e40af'
-    ctx.fillText('&', x + 10, y + 5)
+    ctx.font = '16px Arial'
+    ctx.fillText('&', x - 15, y)
   }
 
   drawOrGate(ctx, x, y) {
+    // OR ゲートの形状
+    ctx.fillStyle = '#ffffff'
     ctx.beginPath()
-    ctx.arc(x + 10, y, 15, -Math.PI/3, Math.PI/3)
-    ctx.arc(x - 5, y, 20, -Math.PI/4, Math.PI/4)
-    ctx.closePath()
-    ctx.stroke()
-    ctx.fillStyle = '#dcfce7'
+    ctx.moveTo(x - 30, y - 20)
+    ctx.quadraticCurveTo(x - 10, y - 20, x + 20, y)
+    ctx.quadraticCurveTo(x - 10, y + 20, x - 30, y + 20)
+    ctx.quadraticCurveTo(x - 20, y, x - 30, y - 20)
     ctx.fill()
+    ctx.stroke()
+    
+    // ORシンボル
     ctx.fillStyle = '#166534'
-    ctx.fillText('≥1', x + 10, y + 5)
+    ctx.font = '12px Arial'
+    ctx.fillText('≥1', x - 10, y)
   }
 
   drawNotGate(ctx, x, y) {
+    // NOT ゲートの形状（三角形）
+    ctx.fillStyle = '#ffffff'
     ctx.beginPath()
-    ctx.moveTo(x, y - 10)
-    ctx.lineTo(x, y + 10)
-    ctx.lineTo(x + 20, y)
+    ctx.moveTo(x - 30, y - 15)
+    ctx.lineTo(x - 30, y + 15)
+    ctx.lineTo(x + 10, y)
     ctx.closePath()
-    ctx.stroke()
-    ctx.fillStyle = '#fef2f2'
     ctx.fill()
+    ctx.stroke()
     
-    // NOT記号の小さな円
+    // NOT記号の小さな円（インバータ）
     ctx.beginPath()
-    ctx.arc(x + 25, y, 3, 0, 2 * Math.PI)
-    ctx.stroke()
+    ctx.arc(x + 15, y, 5, 0, 2 * Math.PI)
+    ctx.fillStyle = '#ffffff'
     ctx.fill()
+    ctx.stroke()
+  }
+
+  drawXorGate(ctx, x, y) {
+    // XOR ゲートの形状（OR + 追加線）
+    ctx.fillStyle = '#ffffff'
+    
+    // メインのOR形状
+    ctx.beginPath()
+    ctx.moveTo(x - 25, y - 20)
+    ctx.quadraticCurveTo(x - 5, y - 20, x + 20, y)
+    ctx.quadraticCurveTo(x - 5, y + 20, x - 25, y + 20)
+    ctx.quadraticCurveTo(x - 15, y, x - 25, y - 20)
+    ctx.fill()
+    ctx.stroke()
+    
+    // 追加の曲線（XORを示す）
+    ctx.beginPath()
+    ctx.moveTo(x - 35, y - 15)
+    ctx.quadraticCurveTo(x - 25, y, x - 35, y + 15)
+    ctx.stroke()
+    
+    // XORシンボル
+    ctx.fillStyle = '#7c3aed'
+    ctx.font = '12px Arial'
+    ctx.fillText('⊕', x - 10, y)
+  }
+
+  drawBufferGate(ctx, x, y) {
+    // BUFFER ゲートの形状（三角形、NOT無し）
+    ctx.fillStyle = '#ffffff'
+    ctx.beginPath()
+    ctx.moveTo(x - 30, y - 15)
+    ctx.lineTo(x - 30, y + 15)
+    ctx.lineTo(x + 10, y)
+    ctx.closePath()
+    ctx.fill()
+    ctx.stroke()
+    
+    // BUFFERシンボル
+    ctx.fillStyle = '#6b7280'
+    ctx.font = '10px Arial'
+    ctx.fillText('1', x - 15, y)
   }
 
   cleanup() {
