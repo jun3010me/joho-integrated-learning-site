@@ -1171,12 +1171,17 @@ export class CompressionTool {
     
     // 木構築完了を表示
     if (this.treeSteps.length > 0) {
-      this.currentTreeStep = this.treeSteps.length - 1
-      console.log('Updating tree visualization...')
-      this.updateTreeVisualization()
+      // 最初のステップから開始（初期状態を表示）
+      this.currentTreeStep = 0
+      console.log('Setting to first step and updating tree visualization...')
       
       // 自動的に木構築タブに切り替え
       this.switchSubsection('huffman', 'tree')
+      
+      // タブ切り替え後に少し遅延してから描画を更新
+      setTimeout(() => {
+        this.updateTreeVisualization()
+      }, 100)
       
       alert('ハフマン木が構築されました！木構築タブで過程を確認できます。')
     }
@@ -1504,8 +1509,11 @@ export class CompressionTool {
       if (currentStep.tree) {
         console.log('Drawing tree:', currentStep.tree)
         this.drawHuffmanTree(svg, currentStep.tree)
+      } else if (currentStep.nodes && currentStep.nodes.length > 0) {
+        console.log('Drawing individual nodes:', currentStep.nodes)
+        this.drawNodesOnly(svg, currentStep.nodes)
       } else {
-        console.log('No tree in current step')
+        console.log('No tree or nodes in current step')
         svg.innerHTML = '<text x="400" y="200" text-anchor="middle" font-size="16" fill="#666">ハフマン木構築中...</text>'
       }
     } else {
@@ -1624,6 +1632,67 @@ export class CompressionTool {
     
     const maxLevel = getMaxLevel(tree)
     drawNode(tree, width / 2, 50, 0, maxLevel)
+  }
+
+  drawNodesOnly(svg, nodes) {
+    console.log('Drawing individual nodes:', nodes)
+    svg.innerHTML = ''
+    
+    if (!nodes || !Array.isArray(nodes) || nodes.length === 0) {
+      console.log('No nodes to draw')
+      return
+    }
+    
+    // SVGのサイズを設定
+    svg.setAttribute('width', '800')
+    svg.setAttribute('height', '400')
+    svg.setAttribute('viewBox', '0 0 800 400')
+    const width = 800
+    const height = 400
+    
+    // ノードを水平に配置
+    const spacing = Math.min(100, width / (nodes.length + 1))
+    const startX = (width - (nodes.length - 1) * spacing) / 2
+    const y = height / 2
+    const radius = 25
+    
+    nodes.forEach((node, index) => {
+      const x = startX + index * spacing
+      
+      // ノードを描画
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+      circle.setAttribute('cx', x)
+      circle.setAttribute('cy', y)
+      circle.setAttribute('r', radius)
+      circle.setAttribute('fill', '#3b82f6')
+      circle.setAttribute('stroke', '#374151')
+      circle.setAttribute('stroke-width', '2')
+      svg.appendChild(circle)
+      
+      // 文字ラベル
+      const charText = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+      charText.setAttribute('x', x)
+      charText.setAttribute('y', y - 5)
+      charText.setAttribute('text-anchor', 'middle')
+      charText.setAttribute('font-size', '16')
+      charText.setAttribute('font-weight', 'bold')
+      charText.setAttribute('fill', 'white')
+      charText.textContent = node.char || '?'
+      svg.appendChild(charText)
+      
+      // 頻度ラベル
+      const freqText = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+      freqText.setAttribute('x', x)
+      freqText.setAttribute('y', y + 8)
+      freqText.setAttribute('text-anchor', 'middle')
+      freqText.setAttribute('font-size', '12')
+      freqText.setAttribute('font-weight', 'normal')
+      freqText.setAttribute('fill', 'white')
+      freqText.textContent = node.freq + '%'
+      svg.appendChild(freqText)
+    })
+    
+    console.log('Individual nodes drawn successfully')
   }
 
   // テキスト符号化
