@@ -1658,8 +1658,8 @@ export class CompressionTool {
     return colorMap[char] || '#6b7280' // デフォルトはグレー
   }
 
-  drawForcePositionedNode(svg, node, x, y, radius, index) {
-    console.log(`📍 強制位置: ${node.char} at (${x}, ${y}) - index ${index}`)
+  drawForcePositionedNode(svg, node, x, y, radius, index, isHighlighted = false) {
+    console.log(`📍 強制位置: ${node.char} at (${x}, ${y}) - index ${index} ${isHighlighted ? '🔥' : ''}`)
     
     // 各要素に一意のIDを付与して重複を防止
     const baseId = `node-${node.char}-${index}-${Date.now()}`
@@ -1673,16 +1673,19 @@ export class CompressionTool {
     shadow.setAttribute('fill', 'rgba(0, 0, 0, 0.3)')
     svg.appendChild(shadow)
     
-    // メインサークル (文字ごとの統一色)
-    const nodeColor = this.getNodeColorByChar(node.char)
+    // メインサークル (文字ごとの統一色またはハイライト)
+    const nodeColor = isHighlighted ? '#fbbf24' : this.getNodeColorByChar(node.char)  // ハイライト時は黄色
+    const strokeColor = isHighlighted ? '#dc2626' : '#000000'  // ハイライト時は赤縁
+    const strokeWidth = isHighlighted ? '4' : '3'
+    
     const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
     circle.setAttribute('id', `${baseId}-circle`)
     circle.setAttribute('cx', x)
     circle.setAttribute('cy', y)
     circle.setAttribute('r', radius)
     circle.setAttribute('fill', nodeColor)
-    circle.setAttribute('stroke', '#000000')
-    circle.setAttribute('stroke-width', '3')
+    circle.setAttribute('stroke', strokeColor)
+    circle.setAttribute('stroke-width', strokeWidth)
     svg.appendChild(circle)
     
     // 文字ラベル
@@ -1751,54 +1754,79 @@ export class CompressionTool {
   }
 
   drawForestStage(svg, forestNodes, highlightPair, newParent, width, height) {
-    console.log('=== 森の段階表示 ===')
+    console.log('🌳 === 森の段階表示（強制位置システム） ===')
     console.log('Forest nodes:', forestNodes.map(tree => {
       if (tree.char) return tree.char
       return `(${tree.freq})`
     }))
     
-    // 各木を個別に正しいレイアウトで描画
-    const nodeRadius = 30
-    const padding = 60
-    const minSpacing = 150  // 木間の最小間隔
+    // 葉ノードを分離して強制位置システムで描画
+    const leafNodes = forestNodes.filter(tree => !tree.left && !tree.right)
+    const internalTrees = forestNodes.filter(tree => tree.left || tree.right)
     
-    // 各木の幅を計算
-    const treeWidths = forestNodes.map(tree => {
-      if (!tree.left && !tree.right) {
-        return nodeRadius * 2 + 20  // 葉ノードの幅
-      }
-      return this.calculateTreeWidth(tree) || 100
-    })
+    console.log(`🍂 葉ノード: ${leafNodes.length}個, 🌲 内部木: ${internalTrees.length}個`)
     
-    const totalRequiredWidth = treeWidths.reduce((sum, w) => sum + w, 0) + (forestNodes.length - 1) * minSpacing
-    const availableWidth = width - (padding * 2)
-    
-    let actualSpacing = minSpacing
-    let scale = 1
-    
-    if (totalRequiredWidth > availableWidth) {
-      scale = availableWidth / totalRequiredWidth
-      scale = Math.max(scale, 0.7)  // 最小スケール
-      actualSpacing = minSpacing * scale
+    // 1. 葉ノードを強制位置で描画
+    if (leafNodes.length > 0) {
+      console.log('🎯 葉ノードを強制位置で描画')
+      this.drawForestLeafNodes(svg, leafNodes, width, height, highlightPair)
     }
     
-    let currentX = padding
+    // 2. 内部木を個別に描画
+    if (internalTrees.length > 0) {
+      console.log('🌲 内部木を個別描画')
+      this.drawForestInternalTrees(svg, internalTrees, width, height, highlightPair, leafNodes.length)
+    }
     
-    forestNodes.forEach((tree, index) => {
+    console.log('✅ === 森の段階表示完了 ===')
+  }
+
+  drawForestLeafNodes(svg, leafNodes, width, height, highlightPair) {
+    const nodeRadius = 25
+    const FIXED_SPACING = 120
+    const FIXED_START_X = 100
+    const FIXED_Y = height - 100
+    
+    // 頻度順でソート
+    const sortedNodes = [...leafNodes].sort((a, b) => a.freq - b.freq)
+    
+    sortedNodes.forEach((node, index) => {
+      const x = FIXED_START_X + (index * FIXED_SPACING)
+      const y = FIXED_Y
+      
+      const isHighlighted = highlightPair && (
+        this.isSameNode(node, highlightPair.left) || 
+        this.isSameNode(node, highlightPair.right)
+      )
+      
+      console.log(`🍂 葉ノード ${node.char}(${node.freq}): (${x}, ${y}) ${isHighlighted ? '🔥ハイライト' : ''}`)
+      
+      this.drawForcePositionedNode(svg, node, x, y, nodeRadius, index, isHighlighted)
+    })
+  }
+
+  drawForestInternalTrees(svg, internalTrees, width, height, highlightPair, leafCount) {
+    const padding = 60
+    const treeSpacing = 200
+    
+    // 内部木を葉ノードの上部に配置
+    const startX = 100 + (leafCount * 120) + 100  // 葉ノードの右側から開始
+    const treeY = height - 250  // 葉ノードより上に配置
+    
+    internalTrees.forEach((tree, index) => {
+      const treeX = startX + (index * treeSpacing)
+      
       const isHighlighted = highlightPair && (
         this.isSameNode(tree, highlightPair.left) || 
         this.isSameNode(tree, highlightPair.right)
       )
       
-      // 各木を個別に描画
-      const treeX = currentX + (treeWidths[index] * scale) / 2
-      this.drawSubTreeFromTopWithScale(svg, tree, treeX, padding + 40, isHighlighted, scale)
+      console.log(`🌲 内部木 (${tree.freq}): (${treeX}, ${treeY}) ${isHighlighted ? '🔥ハイライト' : ''}`)
       
-      // 次の木の位置を計算
-      currentX += (treeWidths[index] * scale) + actualSpacing
+      // 内部木は既存のメソッドで描画
+      this.drawSubTreeFromTopWithScale(svg, tree, treeX, treeY, isHighlighted, 0.8)
     })
-    
-    console.log('=== 森の段階表示完了 ===')
+  }
     
     // 新しい親ノードを点線で表示（結合予定）
     if (newParent && highlightPair) {
