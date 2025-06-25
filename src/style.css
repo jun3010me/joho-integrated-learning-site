@@ -198,3 +198,98 @@
     font-size: 14px;
   }
 }
+
+/* 論理回路学習専用スタイル */
+.logic-tab-btn {
+  @apply px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 cursor-pointer;
+  @apply bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300;
+  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+}
+
+.logic-tab-btn.active {
+  @apply bg-blue-500 text-white hover:bg-blue-600 border-blue-500;
+  @apply shadow-md;
+}
+
+.logic-section {
+  @apply hidden;
+}
+
+.logic-section.active {
+  @apply block;
+}
+
+.logic-input-btn {
+  @apply px-4 py-2 min-w-16 text-center font-mono font-bold text-lg;
+  @apply bg-white border-2 border-gray-300 rounded-lg;
+  @apply hover:border-blue-400 hover:bg-blue-50 transition-colors duration-200;
+  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+  @apply cursor-pointer select-none;
+}
+
+.logic-input-btn:hover {
+  @apply shadow-md transform scale-105;
+}
+
+.logic-input-btn:active {
+  @apply transform scale-95;
+}
+
+/* 論理ゲート色分け */
+.gate-and {
+  @apply text-blue-600 bg-blue-50 border-blue-200;
+}
+
+.gate-or {
+  @apply text-green-600 bg-green-50 border-green-200;
+}
+
+.gate-not {
+  @apply text-red-600 bg-red-50 border-red-200;
+}
+
+.gate-xor {
+  @apply text-purple-600 bg-purple-50 border-purple-200;
+}
+
+/* 真理値表のアニメーション */
+.truth-table-row {
+  @apply transition-all duration-300 ease-in-out;
+}
+
+.truth-table-row:hover {
+  @apply bg-blue-50 transform scale-105;
+}
+
+/* 論理式入力フィールド */
+.logic-expression-input {
+  @apply w-full p-3 border border-gray-300 rounded-lg font-mono;
+  @apply focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+  @apply transition-all duration-200;
+}
+
+.logic-expression-input:focus {
+  @apply shadow-lg;
+}
+
+/* 結果表示エリア */
+.logic-result-area {
+  @apply bg-gradient-to-br from-gray-50 to-gray-100;
+  @apply border border-gray-200 rounded-lg p-4;
+  @apply transition-all duration-300;
+}
+
+.logic-result-area.has-content {
+  @apply shadow-md;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+  .logic-tab-btn {
+    @apply px-3 py-1.5 text-xs;
+  }
+  
+  .logic-input-btn {
+    @apply px-3 py-1.5 min-w-12 text-base;
+  }
+}
