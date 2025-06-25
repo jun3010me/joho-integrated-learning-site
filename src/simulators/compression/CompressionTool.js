@@ -255,19 +255,54 @@ export class CompressionTool {
 
             <!-- 木構築 -->
             <div id="hf-tree" class="subsection hidden">
-              <h3 class="text-xl font-semibold text-gray-800 mb-4">ハフマン木構築過程</h3>
-              <div class="space-y-4">
-                <div class="flex flex-wrap gap-2">
-                  <button id="tree-step-back" class="btn-secondary">戻る</button>
-                  <button id="tree-step-forward" class="btn-secondary">次へ</button>
-                  <button id="tree-auto-play" class="btn-primary">自動再生</button>
-                  <button id="tree-reset" class="btn-secondary">リセット</button>
+              <h3 class="text-2xl font-bold text-gray-900 mb-6 text-center">🌳 ハフマン木構築過程</h3>
+              <div class="space-y-6">
+                <!-- 美しいナビゲーションコントロール -->
+                <div class="flex flex-wrap justify-center gap-3">
+                  <button id="tree-step-back" class="huffman-nav-button">⏮️ 戻る</button>
+                  <button id="tree-step-forward" class="huffman-nav-button">次へ ⏭️</button>
+                  <button id="tree-auto-play" class="huffman-nav-button">▶️ 自動再生</button>
+                  <button id="tree-reset" class="huffman-nav-button">🔄 リセット</button>
                 </div>
-                <div class="bg-white border rounded-lg p-4 min-h-96">
-                  <svg id="huffman-tree" class="w-full h-96"></svg>
+                
+                <!-- 美しいステップインジケーター -->
+                <div id="tree-step-indicator" class="huffman-step-indicator">
+                  ステップ 1/7: 初期状態 - 各文字を個別ノードとして配置
                 </div>
-                <div class="bg-blue-50 p-4 rounded-lg">
-                  <div id="tree-step-text" class="text-blue-800">ハフマン木構築をステップ実行できます</div>
+                
+                <!-- 美しいハフマン木表示コンテナ -->
+                <div class="huffman-tree-container">
+                  <svg id="huffman-tree" class="w-full h-96" style="background: transparent;">
+                    <!-- グラデーションとフィルターの定義 -->
+                    <defs>
+                      <filter id="dropShadow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="rgba(0,0,0,0.3)"/>
+                      </filter>
+                      <linearGradient id="backgroundGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#f8fafc;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#e2e8f0;stop-opacity:1" />
+                      </linearGradient>
+                    </defs>
+                    <!-- 背景 -->
+                    <rect width="100%" height="100%" fill="url(#backgroundGradient)" rx="12"/>
+                  </svg>
+                </div>
+                
+                <!-- 美しい説明パネル -->
+                <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 shadow-sm">
+                  <div class="flex items-start space-x-4">
+                    <div class="flex-shrink-0">
+                      <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                        <span class="text-white font-bold text-lg">💡</span>
+                      </div>
+                    </div>
+                    <div class="flex-1">
+                      <h4 class="font-semibold text-blue-900 mb-2">構築のポイント</h4>
+                      <div id="tree-step-text" class="text-blue-800 leading-relaxed">
+                        ハフマン木構築をステップ実行できます。各ステップで最も頻度の低い2つのノードを結合していきます。
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1579,37 +1614,136 @@ export class CompressionTool {
   }
 
   drawSubTreeFromTop(svg, tree, centerX, topY, isHighlighted = false) {
-    const baseSpacing = 80  // ベース間隔を増加
+    // より美しい配置のために、事前に各ノードの位置を計算
+    const levelHeight = 90  // レベル間の統一された縦幅
+    const nodePositions = this.calculateBeautifulNodePositions(tree, centerX, topY, levelHeight)
     
-    const drawNode = (node, x, y, level) => {
+    // 全ノードを描画
+    this.drawBeautifulNodes(svg, nodePositions, isHighlighted)
+    
+    // 美しい接続線を描画
+    this.drawBeautifulConnections(svg, nodePositions, isHighlighted)
+  }
+
+  calculateBeautifulNodePositions(tree, rootX, rootY, levelHeight) {
+    const positions = new Map()
+    
+    // 各レベルの葉の数を計算してバランスの良い配置を決定
+    const getLeafCount = (node) => {
+      if (!node) return 0
+      if (!node.left && !node.right) return 1
+      return getLeafCount(node.left) + getLeafCount(node.right)
+    }
+    
+    const calculatePositions = (node, x, y, level, leftBound, rightBound) => {
       if (!node) return
       
-      const radius = 25
-      this.drawTreeNode(svg, node, x, y, radius, isHighlighted)
+      const leafCount = getLeafCount(node)
+      const spacing = Math.max(60, (rightBound - leftBound) / Math.max(leafCount, 1))
+      
+      // 現在のノード位置を設定
+      positions.set(node, { x, y, level, leafCount })
       
       if (node.left || node.right) {
-        // レベルに応じて適切な間隔を計算（より緩やかな縮小）
-        const childSpacing = baseSpacing / Math.pow(1.3, level)
-        const minSpacing = 40  // 最小間隔を保証
-        const actualSpacing = Math.max(childSpacing, minSpacing)
+        const leftLeafCount = getLeafCount(node.left)
+        const rightLeafCount = getLeafCount(node.right)
+        const totalLeafCount = leftLeafCount + rightLeafCount
         
         if (node.left) {
-          const leftX = x - actualSpacing
-          const leftY = y + 80  // 垂直間隔も増加
-          this.drawConnection(svg, x, y + radius, leftX, leftY - radius, isHighlighted)
-          drawNode(node.left, leftX, leftY, level + 1)
+          const leftX = x - (spacing * rightLeafCount / 2)
+          const leftY = y + levelHeight
+          calculatePositions(node.left, leftX, leftY, level + 1, leftBound, x)
         }
         
         if (node.right) {
-          const rightX = x + actualSpacing
-          const rightY = y + 80  // 垂直間隔も増加
-          this.drawConnection(svg, x, y + radius, rightX, rightY - radius, isHighlighted)
-          drawNode(node.right, rightX, rightY, level + 1)
+          const rightX = x + (spacing * leftLeafCount / 2)
+          const rightY = y + levelHeight
+          calculatePositions(node.right, rightX, rightY, level + 1, x, rightBound)
         }
       }
     }
     
-    drawNode(tree, centerX, topY, 0)
+    // 初期計算範囲を設定
+    const treeWidth = this.calculateTreeWidth(tree)
+    calculatePositions(tree, rootX, rootY, 0, rootX - treeWidth/2, rootX + treeWidth/2)
+    
+    return positions
+  }
+
+  drawBeautifulNodes(svg, positions, isHighlighted) {
+    positions.forEach((pos, node) => {
+      this.drawBeautifulNode(svg, node, pos.x, pos.y, isHighlighted)
+    })
+  }
+
+  drawBeautifulConnections(svg, positions, isHighlighted) {
+    positions.forEach((pos, node) => {
+      if (node.left) {
+        const parentPos = positions.get(node)
+        const childPos = positions.get(node.left)
+        this.drawBeautifulConnection(svg, parentPos.x, parentPos.y, childPos.x, childPos.y, isHighlighted, '0')
+      }
+      if (node.right) {
+        const parentPos = positions.get(node)
+        const childPos = positions.get(node.right)
+        this.drawBeautifulConnection(svg, parentPos.x, parentPos.y, childPos.x, childPos.y, isHighlighted, '1')
+      }
+    })
+  }
+
+  drawBeautifulConnection(svg, x1, y1, x2, y2, isHighlighted, bitLabel) {
+    const radius = 30  // ノードの半径
+    
+    // ベジェ曲線の制御点を計算
+    const controlY = y1 + (y2 - y1) * 0.6  // 曲線の深さ
+    const controlX1 = x1
+    const controlX2 = x2
+    
+    // SVGパス要素を作成
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+    const pathData = `M ${x1} ${y1 + radius} Q ${controlX1} ${controlY} ${x2} ${y2 - radius}`
+    
+    path.setAttribute('d', pathData)
+    path.setAttribute('fill', 'none')
+    path.setAttribute('stroke', isHighlighted ? '#ef4444' : '#6b7280')
+    path.setAttribute('stroke-width', isHighlighted ? '3' : '2.5')
+    path.setAttribute('stroke-linecap', 'round')
+    path.setAttribute('opacity', '0.8')
+    
+    // グラデーション効果
+    if (!isHighlighted) {
+      path.setAttribute('stroke', '#4f46e5')
+      path.setAttribute('opacity', '0.7')
+    }
+    
+    svg.appendChild(path)
+    
+    // ビットラベル（0/1）を美しく配置
+    const midX = (x1 + x2) / 2
+    const midY = (y1 + y2) / 2 - 10
+    
+    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+    label.setAttribute('x', midX)
+    label.setAttribute('y', midY)
+    label.setAttribute('text-anchor', 'middle')
+    label.setAttribute('font-family', 'Inter, sans-serif')
+    label.setAttribute('font-size', '14')
+    label.setAttribute('font-weight', '600')
+    label.setAttribute('fill', bitLabel === '0' ? '#dc2626' : '#16a34a')
+    label.textContent = bitLabel
+    
+    // ラベルの背景円
+    const labelBg = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+    labelBg.setAttribute('cx', midX)
+    labelBg.setAttribute('cy', midY - 5)
+    labelBg.setAttribute('r', '12')
+    labelBg.setAttribute('fill', 'white')
+    labelBg.setAttribute('stroke', bitLabel === '0' ? '#dc2626' : '#16a34a')
+    labelBg.setAttribute('stroke-width', '1.5')
+    labelBg.setAttribute('opacity', '0.95')
+    
+    svg.appendChild(labelBg)
+    svg.appendChild(label)
   }
 
   calculateTreeWidth(tree, level = 0) {
@@ -1637,38 +1771,201 @@ export class CompressionTool {
     this.drawSubTreeFromTop(svg, tree, centerX, topY, false)
   }
 
-  drawTreeNode(svg, node, x, y, radius, isHighlighted = false, isDashed = false) {
-    // ノード円を描画
+  drawBeautifulNode(svg, node, x, y, isHighlighted = false, isDashed = false) {
+    const radius = 30
+    
+    // グラデーション定義を作成
+    const defs = svg.querySelector('defs') || svg.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'defs'))
+    
+    // 葉ノード用グラデーション
+    if (!defs.querySelector('#leafGradient')) {
+      const leafGradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient')
+      leafGradient.setAttribute('id', 'leafGradient')
+      leafGradient.setAttribute('x1', '0%')
+      leafGradient.setAttribute('y1', '0%')
+      leafGradient.setAttribute('x2', '100%')
+      leafGradient.setAttribute('y2', '100%')
+      
+      const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop')
+      stop1.setAttribute('offset', '0%')
+      stop1.setAttribute('stop-color', '#60a5fa')
+      
+      const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop')
+      stop2.setAttribute('offset', '100%')
+      stop2.setAttribute('stop-color', '#3b82f6')
+      
+      leafGradient.appendChild(stop1)
+      leafGradient.appendChild(stop2)
+      defs.appendChild(leafGradient)
+    }
+    
+    // 内部ノード用グラデーション
+    if (!defs.querySelector('#internalGradient')) {
+      const internalGradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient')
+      internalGradient.setAttribute('id', 'internalGradient')
+      internalGradient.setAttribute('x1', '0%')
+      internalGradient.setAttribute('y1', '0%')
+      internalGradient.setAttribute('x2', '100%')
+      internalGradient.setAttribute('y2', '100%')
+      
+      const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop')
+      stop1.setAttribute('offset', '0%')
+      stop1.setAttribute('stop-color', '#f3f4f6')
+      
+      const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop')
+      stop2.setAttribute('offset', '100%')
+      stop2.setAttribute('stop-color', '#d1d5db')
+      
+      internalGradient.appendChild(stop1)
+      internalGradient.appendChild(stop2)
+      defs.appendChild(internalGradient)
+    }
+    
+    // ハイライト用グラデーション
+    if (!defs.querySelector('#highlightGradient')) {
+      const highlightGradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient')
+      highlightGradient.setAttribute('id', 'highlightGradient')
+      highlightGradient.setAttribute('x1', '0%')
+      highlightGradient.setAttribute('y1', '0%')
+      highlightGradient.setAttribute('x2', '100%')
+      highlightGradient.setAttribute('y2', '100%')
+      
+      const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop')
+      stop1.setAttribute('offset', '0%')
+      stop1.setAttribute('stop-color', '#fca5a5')
+      
+      const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop')
+      stop2.setAttribute('offset', '100%')
+      stop2.setAttribute('stop-color', '#ef4444')
+      
+      highlightGradient.appendChild(stop1)
+      highlightGradient.appendChild(stop2)
+      defs.appendChild(highlightGradient)
+    }
+    
+    // 影効果
+    const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+    shadow.setAttribute('cx', x + 3)
+    shadow.setAttribute('cy', y + 3)
+    shadow.setAttribute('r', radius)
+    shadow.setAttribute('fill', 'rgba(0, 0, 0, 0.2)')
+    shadow.setAttribute('opacity', '0.6')
+    svg.appendChild(shadow)
+    
+    // メインノード円
     const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
     circle.setAttribute('cx', x)
     circle.setAttribute('cy', y)
     circle.setAttribute('r', radius)
-    circle.setAttribute('fill', node.char ? '#3b82f6' : '#e5e7eb')
-    circle.setAttribute('stroke', isHighlighted ? '#ef4444' : '#374151')
+    
+    if (isHighlighted) {
+      circle.setAttribute('fill', 'url(#highlightGradient)')
+    } else if (node.char) {
+      circle.setAttribute('fill', 'url(#leafGradient)')
+    } else {
+      circle.setAttribute('fill', 'url(#internalGradient)')
+    }
+    
+    circle.setAttribute('stroke', isHighlighted ? '#dc2626' : '#6b7280')
     circle.setAttribute('stroke-width', isHighlighted ? '3' : '2')
+    circle.setAttribute('filter', 'url(#dropShadow)')
     
     if (isDashed) {
-      circle.setAttribute('stroke-dasharray', '5,5')
-      circle.setAttribute('opacity', '0.7')
+      circle.setAttribute('stroke-dasharray', '8,4')
+      circle.setAttribute('opacity', '0.8')
     }
+    
+    // ホバー効果のクラスを追加
+    circle.setAttribute('class', 'huffman-node-beautiful')
     
     svg.appendChild(circle)
     
-    // ノードラベルを描画
-    this.drawNodeLabel(svg, x, y, node)
+    // ノードラベルを美しく描画
+    this.drawBeautifulNodeLabel(svg, x, y, node)
     
     // ハイライト効果
     if (isHighlighted) {
       const highlight = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
       highlight.setAttribute('cx', x)
       highlight.setAttribute('cy', y)
-      highlight.setAttribute('r', radius + 5)
+      highlight.setAttribute('r', radius + 8)
       highlight.setAttribute('fill', 'none')
       highlight.setAttribute('stroke', '#ef4444')
-      highlight.setAttribute('stroke-width', '2')
-      highlight.setAttribute('opacity', '0.5')
+      highlight.setAttribute('stroke-width', '3')
+      highlight.setAttribute('opacity', '0.6')
+      highlight.setAttribute('stroke-dasharray', '10,5')
+      
+      // アニメーション効果
+      const animate = document.createElementNS('http://www.w3.org/2000/svg', 'animateTransform')
+      animate.setAttribute('attributeName', 'transform')
+      animate.setAttribute('type', 'rotate')
+      animate.setAttribute('values', '0 ' + x + ' ' + y + ';360 ' + x + ' ' + y)
+      animate.setAttribute('dur', '3s')
+      animate.setAttribute('repeatCount', 'indefinite')
+      
+      highlight.appendChild(animate)
       svg.appendChild(highlight)
     }
+  }
+
+  drawBeautifulNodeLabel(svg, x, y, node) {
+    const isLeaf = !!node.char
+    
+    if (isLeaf) {
+      // 葉ノードのラベル
+      const charLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+      charLabel.setAttribute('x', x)
+      charLabel.setAttribute('y', y - 5)
+      charLabel.setAttribute('text-anchor', 'middle')
+      charLabel.setAttribute('font-family', 'Inter, sans-serif')
+      charLabel.setAttribute('font-size', '16')
+      charLabel.setAttribute('font-weight', '700')
+      charLabel.setAttribute('fill', 'white')
+      charLabel.textContent = node.char
+      
+      const freqLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+      freqLabel.setAttribute('x', x)
+      freqLabel.setAttribute('y', y + 10)
+      freqLabel.setAttribute('text-anchor', 'middle')
+      freqLabel.setAttribute('font-family', 'Inter, sans-serif')
+      freqLabel.setAttribute('font-size', '12')
+      freqLabel.setAttribute('font-weight', '600')
+      freqLabel.setAttribute('fill', 'white')
+      freqLabel.textContent = node.freq
+      
+      svg.appendChild(charLabel)
+      svg.appendChild(freqLabel)
+    } else {
+      // 内部ノードのラベル
+      const chars = this.getNodeChars(node)
+      const charLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+      charLabel.setAttribute('x', x)
+      charLabel.setAttribute('y', y - 5)
+      charLabel.setAttribute('text-anchor', 'middle')
+      charLabel.setAttribute('font-family', 'Inter, sans-serif')
+      charLabel.setAttribute('font-size', '14')
+      charLabel.setAttribute('font-weight', '600')
+      charLabel.setAttribute('fill', '#374151')
+      charLabel.textContent = chars
+      
+      const freqLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+      freqLabel.setAttribute('x', x)
+      freqLabel.setAttribute('y', y + 10)
+      freqLabel.setAttribute('text-anchor', 'middle')
+      freqLabel.setAttribute('font-family', 'Inter, sans-serif')
+      freqLabel.setAttribute('font-size', '12')
+      freqLabel.setAttribute('font-weight', '600')
+      freqLabel.setAttribute('fill', '#6b7280')
+      freqLabel.textContent = node.freq
+      
+      svg.appendChild(charLabel)
+      svg.appendChild(freqLabel)
+    }
+  }
+
+  drawTreeNode(svg, node, x, y, radius, isHighlighted = false, isDashed = false) {
+    // 新しい美しいノード描画メソッドを使用
+    this.drawBeautifulNode(svg, node, x, y, isHighlighted, isDashed)
   }
 
   drawConnection(svg, x1, y1, x2, y2, isHighlighted = false) {
