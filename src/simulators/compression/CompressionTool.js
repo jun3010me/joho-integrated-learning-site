@@ -1723,17 +1723,123 @@ export class CompressionTool {
     const containerWidth = parseFloat(svg.getAttribute('width')) || svgRect.width || 800
     const containerHeight = parseFloat(svg.getAttribute('height')) || svgRect.height || 500
     
-    // より美しい配置のために、事前に各ノードの位置を計算
-    const levelHeight = 90 * scale  // レベル間の統一された縦幅（スケール適用）
-    const nodePositions = this.calculateBeautifulNodePositionsWithScale(
-      tree, centerX, topY, levelHeight, containerWidth, containerHeight, scale
-    )
+    // 新しいレベルベース配置アルゴリズムを使用
+    const nodePositions = this.calculateLevelBasedPositions(tree, containerWidth, containerHeight, scale)
     
     // 全ノードを描画
     this.drawBeautifulNodesWithScale(svg, nodePositions, isHighlighted, scale)
     
     // 美しい接続線を描画
     this.drawBeautifulConnectionsWithScale(svg, nodePositions, isHighlighted, scale)
+  }
+
+  calculateLevelBasedPositions(tree, containerWidth, containerHeight, scale = 1) {
+    if (!tree) return new Map()
+    
+    const positions = new Map()
+    const nodeRadius = 30 * scale
+    const padding = 60 * scale  // 十分な余白
+    
+    // 1. 木を各レベルに分解
+    const levels = this.getTreeLevels(tree)
+    const maxDepth = levels.length
+    
+    // 2. 領域全体を均等に分割
+    const availableHeight = containerHeight - (padding * 2)
+    const availableWidth = containerWidth - (padding * 2)
+    const levelHeight = maxDepth > 1 ? availableHeight / (maxDepth - 1) : 0
+    
+    // 3. 各レベルでノードを配置
+    levels.forEach((levelNodes, levelIndex) => {
+      const y = padding + (levelIndex * levelHeight)
+      const nodeCount = levelNodes.length
+      
+      if (nodeCount === 1) {
+        // 単一ノードは中央に配置
+        const x = containerWidth / 2
+        positions.set(levelNodes[0], { x, y, level: levelIndex })
+      } else {
+        // 複数ノードは均等分散
+        const nodeSpacing = availableWidth / (nodeCount + 1)
+        levelNodes.forEach((node, nodeIndex) => {
+          const x = padding + nodeSpacing * (nodeIndex + 1)
+          positions.set(node, { x, y, level: levelIndex })
+        })
+      }
+    })
+    
+    // 4. 親ノードの位置を子ノードの中央に調整
+    this.adjustParentPositions(tree, positions)
+    
+    return positions
+  }
+
+  getTreeLevels(tree) {
+    if (!tree) return []
+    
+    const levels = []
+    const queue = [{ node: tree, level: 0 }]
+    
+    while (queue.length > 0) {
+      const { node, level } = queue.shift()
+      
+      // レベル配列を初期化
+      if (!levels[level]) {
+        levels[level] = []
+      }
+      
+      levels[level].push(node)
+      
+      // 子ノードをキューに追加
+      if (node.left) {
+        queue.push({ node: node.left, level: level + 1 })
+      }
+      if (node.right) {
+        queue.push({ node: node.right, level: level + 1 })
+      }
+    }
+    
+    return levels
+  }
+
+  adjustParentPositions(tree, positions) {
+    // 後順走査で親ノードの位置を調整
+    const adjustPosition = (node) => {
+      if (!node) return
+      
+      // 子ノードを先に処理
+      if (node.left) adjustPosition(node.left)
+      if (node.right) adjustPosition(node.right)
+      
+      // 子ノードがある場合、その中央に親ノードを配置
+      if (node.left || node.right) {
+        const parentPos = positions.get(node)
+        if (parentPos) {
+          let leftX = parentPos.x, rightX = parentPos.x
+          
+          if (node.left) {
+            const leftPos = positions.get(node.left)
+            if (leftPos) leftX = leftPos.x
+          }
+          
+          if (node.right) {
+            const rightPos = positions.get(node.right)
+            if (rightPos) rightX = rightPos.x
+          }
+          
+          // 子ノードの中央に配置
+          if (node.left && node.right) {
+            parentPos.x = (leftX + rightX) / 2
+          } else if (node.left) {
+            parentPos.x = leftX
+          } else if (node.right) {
+            parentPos.x = rightX
+          }
+        }
+      }
+    }
+    
+    adjustPosition(tree)
   }
 
   calculateBeautifulNodePositionsWithScale(tree, rootX, rootY, levelHeight, containerWidth, containerHeight, scale) {
