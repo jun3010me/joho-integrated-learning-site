@@ -70,6 +70,18 @@
   input[type="range"] {
     touch-action: none;
   }
+
+  /* スマホでのズーム無効化 */
+  * {
+    touch-action: manipulation;
+  }
+  
+  button, .nav-btn, .section-btn, .btn-primary, .btn-secondary {
+    touch-action: manipulation;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
 }
 
 /* カスタムスタイル */

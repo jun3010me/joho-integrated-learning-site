@@ -63,7 +63,9 @@ export class CompressionTool {
                   </div>
                   
                   <div class="bg-white border-2 border-gray-300 rounded-lg p-4">
-                    <canvas id="pixel-grid" width="320" height="320" class="border border-gray-400 mx-auto block"></canvas>
+                    <div class="flex justify-center">
+                      <canvas id="pixel-grid" width="320" height="320" class="border border-gray-400 max-w-full h-auto" style="max-width: min(320px, calc(100vw - 2rem)); max-height: min(320px, calc(100vw - 2rem));"></canvas>
+                    </div>
                     <div class="flex justify-center gap-4 mt-3">
                       <span class="flex items-center gap-1">
                         <div class="w-4 h-4 bg-blue-500 border border-gray-400"></div>
@@ -129,7 +131,9 @@ export class CompressionTool {
               
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div class="bg-white border-2 border-gray-300 rounded-lg p-4">
-                  <canvas id="practice-grid" width="320" height="320" class="border border-gray-400 mx-auto block"></canvas>
+                  <div class="flex justify-center">
+                    <canvas id="practice-grid" width="320" height="320" class="border border-gray-400 max-w-full h-auto" style="max-width: min(320px, calc(100vw - 2rem)); max-height: min(320px, calc(100vw - 2rem));"></canvas>
+                  </div>
                 </div>
                 
                 <div class="space-y-4">
@@ -1575,7 +1579,9 @@ export class CompressionTool {
 
   drawCompleteTree(svg, tree, width, height) {
     const centerX = width / 2
-    const topY = 50
+    const baseY = height - 50  // 構築過程と同じベースライン
+    const treeDepth = this.getTreeDepth(tree)
+    const topY = baseY - (treeDepth * 70)  // 構築過程と同じ計算方法
     this.drawSubTreeFromTop(svg, tree, centerX, topY, false)
   }
 
