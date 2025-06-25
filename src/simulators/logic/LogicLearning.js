@@ -520,15 +520,64 @@ export class LogicLearning {
   }
 
   drawGateSymbol(ctx, type, x, y) {
-    const s = { AND:{f:'#dbeafe',s:'#1e40af',t:'&',p:16}, OR:{f:'#dcfce7',s:'#166534',t:'≥1',p:12}, NOT:{f:'#fef2f2',s:'#dc2626'}, XOR:{f:'#f3e8ff',s:'#7c3aed',t:'⊕',p:12}, BUFFER:{f:'#f9fafb',s:'#6b7280',t:'1',p:12}}[type];
-    ctx.fillStyle=s.f; ctx.strokeStyle=s.s; ctx.lineWidth=3; ctx.beginPath();
-    if (type==='AND') { ctx.moveTo(x-30,y-20); ctx.lineTo(x,y-20); ctx.arc(x,y,20,-Math.PI/2,Math.PI/2); ctx.lineTo(x-30,y+20); }
-    else if (type==='OR'||type==='XOR') { const o=type==='XOR'?-25:-30; ctx.moveTo(o,y-20); ctx.quadraticCurveTo(x-10,y-20,x+20,y); ctx.quadraticCurveTo(x-10,y+20,o,y+20); ctx.quadraticCurveTo(x-20,y,o,y-20); }
-    else { ctx.moveTo(x-30,y-15); ctx.lineTo(x-30,y+15); ctx.lineTo(x+10,y); }
-    ctx.closePath(); ctx.fill(); ctx.stroke();
-    if(s.t){ ctx.fillStyle=s.s; ctx.font=`bold ${s.p}px Arial`; ctx.fillText(s.t,x-(type==='OR'||type==='XOR'?10:15),y); }
-    if(type==='NOT'){ ctx.beginPath(); ctx.arc(x+15,y,5,0,2*Math.PI); ctx.fillStyle='#fff'; ctx.fill(); ctx.stroke(); }
-    if(type==='XOR'){ ctx.beginPath(); ctx.moveTo(x-35,y-15); ctx.quadraticCurveTo(x-25,y,x-35,y+15); ctx.stroke(); }
+    const styles = {
+      AND:    { fill: '#dbeafe', stroke: '#1e40af', symbol: '&',  symbolSize: 16 },
+      OR:     { fill: '#dcfce7', stroke: '#166534', symbol: '≥1', symbolSize: 12 },
+      NOT:    { fill: '#fef2f2', stroke: '#dc2626', symbol: null, symbolSize: 0 },
+      XOR:    { fill: '#f3e8ff', stroke: '#7c3aed', symbol: '⊕',  symbolSize: 12 },
+      BUFFER: { fill: '#f9fafb', stroke: '#6b7280', symbol: '1',  symbolSize: 12 }
+    };
+    const style = styles[type] || styles['AND'];
+
+    ctx.fillStyle = style.fill;
+    ctx.strokeStyle = style.stroke;
+    ctx.lineWidth = 3;
+    
+    ctx.beginPath();
+
+    if (type === 'AND') {
+        ctx.moveTo(x - 25, y - 20);
+        ctx.lineTo(x, y - 20);
+        ctx.arc(x, y, 20, -Math.PI / 2, Math.PI / 2);
+        ctx.closePath();
+    } else if (type === 'OR' || type === 'XOR') {
+        const backX = x - 30;
+        ctx.moveTo(backX, y - 20);
+        ctx.quadraticCurveTo(x - 5, y - 15, x + 25, y);
+        ctx.quadraticCurveTo(x - 5, y + 15, backX, y + 20);
+        ctx.quadraticCurveTo(x - 15, y, backX, y - 20);
+        ctx.closePath();
+    } else { // NOT, BUFFER
+        ctx.moveTo(x - 25, y - 15);
+        ctx.lineTo(x - 25, y + 15);
+        ctx.lineTo(x + 15, y);
+        ctx.closePath();
+    }
+    ctx.fill();
+    ctx.stroke();
+
+    if (style.symbol) {
+        ctx.fillStyle = style.stroke;
+        ctx.font = `bold ${style.symbolSize}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(style.symbol, x, y);
+    }
+    if (type === 'NOT') {
+        ctx.beginPath();
+        ctx.arc(x + 20, y, 5, 0, 2 * Math.PI);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.strokeStyle = style.stroke;
+        ctx.stroke();
+    }
+    if (type === 'XOR') {
+        ctx.beginPath();
+        ctx.moveTo(x - 35, y - 18);
+        ctx.quadraticCurveTo(x - 20, y, x - 35, y + 18);
+        ctx.strokeStyle = style.stroke;
+        ctx.stroke();
+    }
   }
 
   cleanup() {}
