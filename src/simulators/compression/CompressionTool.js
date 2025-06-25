@@ -1335,6 +1335,9 @@ export class CompressionTool {
       return
     }
     
+    // 最初に全ノードの最終位置を計算
+    this.calculateAllFinalPositions(frequencies)
+    
     try {
       // 初期状態
       const entries = Object.entries(frequencies)
@@ -1585,65 +1588,40 @@ export class CompressionTool {
       return
     }
     
-    console.log('🚀 === 緊急修正: 座標重複の完全解決 ===')
+    console.log('🚀 === 事前計算位置でノード表示 ===')
     console.log('📊 Nodes to display:', nodes.map(n => `${n.char}(${n.freq})`))
-    console.log('📐 Container size:', width, 'x', height)
     
-    // SVGを完全にクリア
+    // SVGをクリア
     svg.innerHTML = ''
-    console.log('🧹 SVG cleared completely')
     
-    // 数値を確定して強制的に分離
     const nodeRadius = 25
-    const FIXED_SPACING = 120  // 固定間隔
-    const FIXED_START_X = 100  // 固定開始位置
-    const FIXED_Y = height - 100  // 固定高さ
     
-    // 頻度の昇順でソート（E, D, C, B, A）
-    const sortedNodes = [...nodes].sort((a, b) => a.freq - b.freq)
-    console.log('📋 Sorted nodes:', sortedNodes.map(n => `${n.char}(${n.freq})`))
-    
-    // 使用された座標の追跡
-    const usedPositions = []
-    
-    // 各ノードを強制的に分離して配置
-    sortedNodes.forEach((node, index) => {
-      // 強制的な固定座標計算
-      let calculatedX = FIXED_START_X + (index * FIXED_SPACING)
-      let calculatedY = FIXED_Y
+    // 新しいMap形式の事前計算位置を使用
+    nodes.forEach((node, index) => {
+      let finalPos = null
       
-      // 重複チェック
-      const isDuplicate = usedPositions.some(pos => 
-        Math.abs(pos.x - calculatedX) < 10 && Math.abs(pos.y - calculatedY) < 10
-      )
-      
-      if (isDuplicate) {
-        console.error(`❌ 座標重複検出: ${node.char} at (${calculatedX}, ${calculatedY})`)
-        // 緊急回避: X座標を強制調整
-        calculatedX += (index * 30) + 50 // より大きなオフセット
-        console.log(`⚠️ 緊急調整: ${node.char} → (${calculatedX}, ${calculatedY})`)
+      if (this.FINAL_POSITIONS instanceof Map) {
+        // 新しいMap形式
+        finalPos = this.FINAL_POSITIONS.get(node)
+      } else {
+        // 従来形式（後方互換性）
+        finalPos = this.FINAL_POSITIONS[node.char]
       }
       
-      // 位置を記録
-      usedPositions.push({ x: calculatedX, y: calculatedY, node: node.char })
+      if (!finalPos) {
+        console.error(`❌ 事前計算位置が見つかりません: ${node.char}`)
+        // フォールバック：均等配置
+        const spacing = width / (nodes.length + 1)
+        finalPos = { x: spacing * (index + 1), y: height - 100 }
+        console.log(`🔄 フォールバック位置使用: (${finalPos.x}, ${finalPos.y})`)
+      }
       
-      console.log(`🎯 ノード ${node.char}(${node.freq}): `)
-      console.log(`   - 計算座標: (${calculatedX.toFixed(1)}, ${calculatedY.toFixed(1)})`)
-      console.log(`   - index: ${index}, total: ${sortedNodes.length}`)
-      console.log(`   - 重複チェック: ${isDuplicate ? '❌ 重複' : '✅ 正常'}`)
+      console.log(`🎯 事前計算位置使用 ${node.char}(${node.freq}): (${finalPos.x}, ${finalPos.y})`)
       
-      // 確実なSVG描画
-      this.drawForcePositionedNode(svg, node, calculatedX, calculatedY, nodeRadius, index)
+      this.drawPreCalculatedNode(svg, node, finalPos.x, finalPos.y, nodeRadius, index, false)
     })
     
-    // 最終検証
-    console.log('🔍 最終位置確認:')
-    usedPositions.forEach((pos, i) => {
-      console.log(`   ${i + 1}. ${pos.node}: (${pos.x}, ${pos.y})`)
-    })
-    
-    console.log('📄 SVG children count:', svg.children.length)
-    console.log('✅ === 緊急修正完了 ===')
+    console.log('✅ === 事前計算位置表示完了 ===')
   }
 
   getNodeColorByChar(char) {
@@ -1742,9 +1720,64 @@ export class CompressionTool {
     console.log(`✅ 強制位置ノード ${node.char} 作成完了`)
   }
 
+  drawPreCalculatedNode(svg, node, x, y, radius, index, isHighlighted = false) {
+    console.log(`📍 事前計算位置: ${node.char} at (${x}, ${y}) ${isHighlighted ? '🔥' : ''}`)
+    
+    const baseId = `precalc-node-${node.char}-${index}-${Date.now()}`
+    
+    // 影
+    const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+    shadow.setAttribute('cx', x + 2)
+    shadow.setAttribute('cy', y + 2)
+    shadow.setAttribute('r', radius)
+    shadow.setAttribute('fill', 'rgba(0, 0, 0, 0.3)')
+    svg.appendChild(shadow)
+    
+    // メインサークル
+    const nodeColor = isHighlighted ? '#fbbf24' : this.getNodeColorByChar(node.char)
+    const strokeColor = isHighlighted ? '#dc2626' : '#000000'
+    const strokeWidth = isHighlighted ? '4' : '3'
+    
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+    circle.setAttribute('id', `${baseId}-circle`)
+    circle.setAttribute('cx', x)
+    circle.setAttribute('cy', y)
+    circle.setAttribute('r', radius)
+    circle.setAttribute('fill', nodeColor)
+    circle.setAttribute('stroke', strokeColor)
+    circle.setAttribute('stroke-width', strokeWidth)
+    svg.appendChild(circle)
+    
+    // 文字ラベル
+    const charText = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+    charText.setAttribute('x', x)
+    charText.setAttribute('y', y - 2)
+    charText.setAttribute('text-anchor', 'middle')
+    charText.setAttribute('dominant-baseline', 'middle')
+    charText.setAttribute('font-family', 'Arial, sans-serif')
+    charText.setAttribute('font-size', '16')
+    charText.setAttribute('font-weight', 'bold')
+    charText.setAttribute('fill', 'white')
+    charText.textContent = node.char
+    svg.appendChild(charText)
+    
+    // 頻度ラベル
+    const freqText = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+    freqText.setAttribute('x', x)
+    freqText.setAttribute('y', y + 12)
+    freqText.setAttribute('text-anchor', 'middle')
+    freqText.setAttribute('dominant-baseline', 'middle')
+    freqText.setAttribute('font-family', 'Arial, sans-serif')
+    freqText.setAttribute('font-size', '12')
+    freqText.setAttribute('font-weight', 'bold')
+    freqText.setAttribute('fill', 'white')
+    freqText.textContent = node.freq
+    svg.appendChild(freqText)
+  }
+
   drawSimpleNode(svg, node, x, y, radius) {
     // 旧メソッドを新メソッドにリダイレクト
-    this.drawForcePositionedNode(svg, node, x, y, radius, 0)
+    this.drawPreCalculatedNode(svg, node, x, y, radius, 0, false)
   }
 
   drawInitialNodes(svg, nodes, width, height) {
@@ -2389,12 +2422,93 @@ export class CompressionTool {
   }
 
   drawCompleteTree(svg, tree, width, height) {
-    console.log('=== 完成したハフマン木を表示 ===')
+    console.log('🌳 === 完成したハフマン木を表示（レベルベース配置） ===')
     
-    // 新しい正しいレイアウトアルゴリズムで描画
-    this.drawSubTreeFromTopWithScale(svg, tree, width / 2, 0, false, 1)
+    // SVGをクリア
+    svg.innerHTML = ''
     
-    console.log('=== 完成した木の表示完了 ===')
+    // レベルベース位置計算を使用
+    const positions = this.calculateLevelBasedPositions(tree, width, height)
+    
+    // 重なり検出とデバッグ
+    this.detectNodeOverlaps(positions)
+    this.debugNodePositions(positions)
+    
+    // 全ノードを美しく描画
+    this.drawLevelBasedNodes(svg, positions, false)
+    
+    // 美しい接続線を描画
+    this.drawLevelBasedConnections(svg, tree, positions, false)
+    
+    console.log('✅ === 完成した木の表示完了（レベルベース） ===')
+  }
+
+  drawLevelBasedNodes(svg, positions, isHighlighted) {
+    console.log('🎨 レベルベースノード描画開始')
+    
+    const nodeRadius = 30
+    let nodeCount = 0
+    
+    positions.forEach((pos, node) => {
+      // 美しいノードを描画
+      this.drawBeautifulNodeWithScale(svg, node, pos.x, pos.y, isHighlighted, false, 1)
+      nodeCount++
+      
+      const displayName = this.getNodeDisplayName(node)
+      console.log(`  ノード描画: ${displayName} at (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)})`)
+    })
+    
+    console.log(`✅ レベルベースノード描画完了 (${nodeCount}個)`)
+  }
+
+  drawLevelBasedConnections(svg, tree, positions, isHighlighted) {
+    console.log('🔗 レベルベース接続線描画開始')
+    
+    let connectionCount = 0
+    
+    const drawConnections = (node) => {
+      if (!node) return
+      
+      const parentPos = positions.get(node)
+      if (!parentPos) return
+      
+      // 左の子への接続
+      if (node.left) {
+        const childPos = positions.get(node.left)
+        if (childPos) {
+          this.drawBeautifulConnectionWithScale(
+            svg, 
+            parentPos.x, parentPos.y, 
+            childPos.x, childPos.y, 
+            isHighlighted, 
+            '0', 
+            1
+          )
+          connectionCount++
+        }
+        drawConnections(node.left)
+      }
+      
+      // 右の子への接続
+      if (node.right) {
+        const childPos = positions.get(node.right)
+        if (childPos) {
+          this.drawBeautifulConnectionWithScale(
+            svg, 
+            parentPos.x, parentPos.y, 
+            childPos.x, childPos.y, 
+            isHighlighted, 
+            '1', 
+            1
+          )
+          connectionCount++
+        }
+        drawConnections(node.right)
+      }
+    }
+    
+    drawConnections(tree)
+    console.log(`✅ レベルベース接続線描画完了 (${connectionCount}本)`)
   }
 
   drawBeautifulNodeWithScale(svg, node, x, y, isHighlighted = false, isDashed = false, scale = 1) {
@@ -3133,6 +3247,219 @@ export class CompressionTool {
           <p class="text-sm text-gray-600">上の基本概念タブで頻度を入力して、木構築タブで過程を確認してください。</p>
         </div>
       `
+    }
+  }
+
+  calculateAllFinalPositions(frequencies) {
+    console.log('📊 === 完全レベルベース位置計算開始 ===')
+    
+    // 動的コンテナサイズ設定
+    const svg = document.getElementById('huffman-tree')
+    const CONTAINER_WIDTH = svg ? parseFloat(svg.getAttribute('width')) || 800 : 800
+    const CONTAINER_HEIGHT = svg ? parseFloat(svg.getAttribute('height')) || 500 : 500
+    
+    console.log(`Container dimensions: ${CONTAINER_WIDTH}x${CONTAINER_HEIGHT}`)
+    
+    // 1. まずハフマン木を完全に構築
+    const fullTree = this.buildFullHuffmanTree(frequencies)
+    if (!fullTree) {
+      console.error('❌ ハフマン木の構築に失敗')
+      return
+    }
+    
+    // 2. レベルベース位置計算システム
+    this.FINAL_POSITIONS = this.calculateLevelBasedPositions(fullTree, CONTAINER_WIDTH, CONTAINER_HEIGHT)
+    
+    console.log('✅ === 完全レベルベース位置計算完了 ===')
+    console.log('📍 全ポジション:', this.FINAL_POSITIONS)
+  }
+
+  buildFullHuffmanTree(frequencies) {
+    console.log('🌳 完全ハフマン木構築開始')
+    
+    const entries = Object.entries(frequencies)
+    let nodes = entries
+      .filter(([char, freq]) => freq > 0)
+      .map(([char, freq]) => ({ char, freq, left: null, right: null, id: char }))
+      .sort((a, b) => a.freq - b.freq)
+    
+    console.log('📊 初期ノード:', nodes.map(n => `${n.char}(${n.freq})`).join(', '))
+    
+    let internalCounter = 1
+    
+    while (nodes.length > 1) {
+      const left = nodes.shift()
+      const right = nodes.shift()
+      
+      const merged = {
+        char: null,
+        freq: left.freq + right.freq,
+        left: left,
+        right: right,
+        id: `internal_${internalCounter++}`,
+        displayChars: this.getNodeChars(left) + this.getNodeChars(right)
+      }
+      
+      let inserted = false
+      for (let i = 0; i < nodes.length; i++) {
+        if (merged.freq <= nodes[i].freq) {
+          nodes.splice(i, 0, merged)
+          inserted = true
+          break
+        }
+      }
+      if (!inserted) {
+        nodes.push(merged)
+      }
+    }
+    
+    console.log('✅ 完全ハフマン木構築完了')
+    return nodes[0]
+  }
+
+  calculateLevelBasedPositions(tree, containerWidth, containerHeight, scale = 1) {
+    if (!tree) return new Map()
+    
+    console.log('🎯 === レベルベース位置計算システム ===')
+    
+    const positions = new Map()
+    const nodeRadius = 30 * scale
+    const padding = 60 * scale
+    
+    // 1. 木を各レベルに分解
+    const levels = this.getTreeLevels(tree)
+    const maxDepth = levels.length
+    
+    console.log(`📊 木の深度: ${maxDepth}, レベル数: ${levels.length}`)
+    levels.forEach((nodes, level) => {
+      console.log(`レベル ${level}: ${nodes.length}個のノード`)
+    })
+    
+    // 2. 領域全体を均等に分割して使用
+    const availableHeight = containerHeight - (padding * 2)
+    const availableWidth = containerWidth - (padding * 2)
+    const levelHeight = maxDepth > 1 ? availableHeight / (maxDepth - 1) : 0
+    
+    console.log(`📏 利用可能領域: ${availableWidth}x${availableHeight}`)
+    console.log(`📏 レベル間隔: ${levelHeight}`)
+    
+    // 3. 各レベルでノードを配置
+    levels.forEach((levelNodes, levelIndex) => {
+      const y = padding + (levelIndex * levelHeight)
+      const nodeCount = levelNodes.length
+      
+      console.log(`🎯 レベル ${levelIndex} 配置: ${nodeCount}個のノード at y=${y.toFixed(1)}`)
+      
+      if (nodeCount === 1) {
+        // 単一ノードは中央に配置
+        const x = containerWidth / 2
+        positions.set(levelNodes[0], { x, y, level: levelIndex })
+        console.log(`   単一ノード ${this.getNodeDisplayName(levelNodes[0])}: (${x.toFixed(1)}, ${y.toFixed(1)})`)
+      } else {
+        // 複数ノードは均等分散配置
+        const nodeSpacing = availableWidth / (nodeCount + 1)
+        levelNodes.forEach((node, nodeIndex) => {
+          const x = padding + nodeSpacing * (nodeIndex + 1)
+          positions.set(node, { x, y, level: levelIndex })
+          console.log(`   ノード ${this.getNodeDisplayName(node)}: (${x.toFixed(1)}, ${y.toFixed(1)})`)
+        })
+      }
+    })
+    
+    // 4. 親ノードの位置を子ノードの中央に微調整
+    this.adjustParentPositions(tree, positions)
+    
+    console.log('✅ === レベルベース位置計算完了 ===')
+    return positions
+  }
+
+  getTreeLevels(tree) {
+    if (!tree) return []
+    
+    const levels = []
+    const queue = [{ node: tree, level: 0 }]
+    
+    while (queue.length > 0) {
+      const { node, level } = queue.shift()
+      
+      // レベル配列を初期化
+      if (!levels[level]) {
+        levels[level] = []
+      }
+      
+      levels[level].push(node)
+      
+      // 子ノードをキューに追加
+      if (node.left) {
+        queue.push({ node: node.left, level: level + 1 })
+      }
+      if (node.right) {
+        queue.push({ node: node.right, level: level + 1 })
+      }
+    }
+    
+    return levels
+  }
+
+  adjustParentPositions(tree, positions) {
+    console.log('🔧 親ノード位置の微調整開始')
+    
+    const adjustNode = (node) => {
+      if (!node || (!node.left && !node.right)) {
+        // 葉ノードは調整しない
+        return
+      }
+      
+      // 子ノードを先に調整
+      if (node.left) adjustNode(node.left)
+      if (node.right) adjustNode(node.right)
+      
+      // 子ノードの位置から親の最適位置を計算
+      const leftPos = node.left ? positions.get(node.left) : null
+      const rightPos = node.right ? positions.get(node.right) : null
+      const currentPos = positions.get(node)
+      
+      if (leftPos && rightPos && currentPos) {
+        // 両方の子がある場合：中央に配置
+        const newX = (leftPos.x + rightPos.x) / 2
+        currentPos.x = newX
+        console.log(`   調整: ${this.getNodeDisplayName(node)} → x=${newX.toFixed(1)}`)
+      } else if (leftPos && currentPos) {
+        // 左の子のみ：左の子の上に配置
+        currentPos.x = leftPos.x
+        console.log(`   調整: ${this.getNodeDisplayName(node)} → x=${leftPos.x.toFixed(1)}`)
+      } else if (rightPos && currentPos) {
+        // 右の子のみ：右の子の上に配置
+        currentPos.x = rightPos.x
+        console.log(`   調整: ${this.getNodeDisplayName(node)} → x=${rightPos.x.toFixed(1)}`)
+      }
+    }
+    
+    adjustNode(tree)
+    console.log('✅ 親ノード位置の微調整完了')
+  }
+
+  getNodeDisplayName(node) {
+    if (!node) return 'null'
+    if (node.char) return `${node.char}(${node.freq})`
+    if (node.displayChars) return `${node.displayChars}(${node.freq})`
+    return `(${node.freq})`
+  }
+
+  getNodeFinalPosition(node) {
+    if (!node) return { x: 0, y: 0 }
+    
+    // レベルベースシステムではMap検索
+    if (this.FINAL_POSITIONS instanceof Map) {
+      const pos = this.FINAL_POSITIONS.get(node)
+      return pos || { x: 0, y: 0 }
+    }
+    
+    // 従来システム（後方互換性）
+    if (node.char) {
+      return this.FINAL_POSITIONS[node.char] || { x: 0, y: 0 }
+    } else {
+      return this.FINAL_POSITIONS[node.id] || { x: 0, y: 0 }
     }
   }
 
