@@ -45,7 +45,7 @@ export class App {
             <div class="flex justify-between items-center h-16">
               <div class="flex items-center space-x-4">
                 <div class="flex-shrink-0">
-                  <h1 class="text-xl font-bold text-gray-900">📚 情報Ⅰ統合学習サイト</h1>
+                  <h1 class="text-xl font-bold text-gray-900">📚 じょうほうらいふ</h1>
                 </div>
               </div>
               <nav id="main-navigation" class="hidden md:flex space-x-1">
@@ -76,7 +76,7 @@ export class App {
         <footer class="bg-white border-t border-gray-200 mt-12">
           <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
             <div class="text-center text-gray-600">
-              <p>&copy; 2024 情報Ⅰ統合学習サイト. 高校情報科学実践学習プラットフォーム</p>
+              <p>&copy; 2024 じょうほうらいふ. 高校情報科学実践学習プラットフォーム</p>
               <p class="mt-2 text-sm">GitHub Pagesで公開 | Vite + Tailwind CSS製</p>
             </div>
           </div>
@@ -152,7 +152,7 @@ export class App {
     mainContent.innerHTML = `
       <div class="text-center mb-12">
         <h1 class="text-4xl font-bold text-gray-900 mb-4">
-          🎓 情報Ⅰ統合学習サイト
+          🎓 じょうほうらいふ
         </h1>
         <p class="text-xl text-gray-600 mb-8">
           高校情報科学の基礎を実践的に学習できる統合プラットフォーム
