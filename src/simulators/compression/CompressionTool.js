@@ -982,10 +982,10 @@ export class CompressionTool {
     const originalBits = this.gridData.flat().join('')
     const compressedData = this.runLengthEncode(this.gridData)
     
-    // 削減率計算（圧縮後サイズ / 元サイズ × 100 として表示）
+    // 削減率計算（(元サイズ - 圧縮後サイズ) / 元サイズ × 100）
     const originalSize = 64
     const compressedSize = compressedData.totalBits
-    const reductionRatio = (compressedSize / originalSize * 100).toFixed(1)
+    const reductionRatio = ((originalSize - compressedSize) / originalSize * 100).toFixed(1)
     
     // 表示を更新
     document.getElementById('original-bits').textContent = originalBits
