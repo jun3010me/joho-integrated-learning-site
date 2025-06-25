@@ -315,7 +315,7 @@ export class LogicLearning {
     // Replace logic operators with JS operators, handling spaces
     expr = expr.replace(/\s*\bAND\b\s*/g, ' && ')
                .replace(/\s*\bOR\b\s*/g, ' || ')
-               .replace(/\bNOT\s*/g, '!') // Handles "NOT A" -> "!A"
+               .replace(/\bNOT\s*/g, ' ! ') // Add spaces for safety
                .replace(/\s*\bXOR\b\s*/g, ' ^ ');
 
     // Validate the expression to only contain allowed characters
