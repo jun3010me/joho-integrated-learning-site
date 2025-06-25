@@ -396,7 +396,7 @@ export class LogicLearning {
         if (finalOutputNames[gate.output]) gate.output = finalOutputNames[gate.output];
     });
 
-    const layout = this.calculateLayout(mergedGates, variables);
+    const { layout, canvasSize } = this.calculateLayout(mergedGates, variables);
     mergedGates.forEach(gate => {
         gate.x = layout[gate.id]?.x || 250;
         gate.y = layout[gate.id]?.y || 150;
