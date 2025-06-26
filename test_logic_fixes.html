@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logic Learning Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="test-container" class="p-8">
+        <h1 class="text-2xl font-bold mb-4">Logic Learning Test</h1>
+        <div id="simulator-container"></div>
+        
+        <div class="mt-8 p-4 bg-gray-100 rounded">
+            <h2 class="text-lg font-bold mb-2">Test Results:</h2>
+            <div id="test-results"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { LogicLearning } from './src/simulators/logic/LogicLearning.js';
+        
+        function runTests() {
+            const results = document.getElementById('test-results');
+            
+            try {
+                // Test 1: Create instance
+                results.innerHTML += '<p>✓ Creating LogicLearning instance...</p>';
+                const logic = new LogicLearning();
+                
+                // Test 2: Render interface
+                results.innerHTML += '<p>✓ Rendering interface...</p>';
+                const container = document.getElementById('simulator-container');
+                logic.render(container);
+                
+                // Test 3: Load half adder
+                results.innerHTML += '<p>✓ Loading half adder preset...</p>';
+                logic.loadHalfAdder();
+                
+                // Test 4: Generate truth table and circuit
+                results.innerHTML += '<p>✓ Generating truth table and circuit...</p>';
+                logic.generateTruthTableAndCircuit();
+                
+                // Check for errors in console
+                setTimeout(() => {
+                    const truthTableDisplay = document.getElementById('truth-table-display');
+                    const circuitDisplay = document.getElementById('circuit-display');
+                    
+                    if (truthTableDisplay && !truthTableDisplay.innerHTML.includes('エラー')) {
+                        results.innerHTML += '<p>✅ Truth table generated successfully!</p>';
+                    } else {
+                        results.innerHTML += '<p>❌ Truth table generation failed</p>';
+                    }
+                    
+                    if (circuitDisplay && !circuitDisplay.innerHTML.includes('エラー')) {
+                        results.innerHTML += '<p>✅ Circuit diagram generated successfully!</p>';
+                    } else {
+                        results.innerHTML += '<p>❌ Circuit diagram generation failed</p>';
+                    }
+                    
+                    results.innerHTML += '<p class="mt-4 font-bold text-green-600">🎉 All tests completed! Check the console for any remaining errors.</p>';
+                }, 1000);
+                
+            } catch (error) {
+                results.innerHTML += `<p>❌ Test failed: ${error.message}</p>`;
+                console.error('Test error:', error);
+            }
+        }
+        
+        // Run tests when page loads
+        document.addEventListener('DOMContentLoaded', runTests);
+    </script>
+</body>
+</html>

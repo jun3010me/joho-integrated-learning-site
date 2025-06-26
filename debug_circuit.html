@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Circuit Debug Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div class="p-8">
+        <h1 class="text-2xl font-bold mb-4">Circuit Debug Test</h1>
+        <div id="simulator-container"></div>
+        
+        <div class="mt-4">
+            <button id="test-circuit" class="bg-blue-500 text-white px-4 py-2 rounded">
+                Test Circuit Drawing
+            </button>
+        </div>
+        
+        <div class="mt-4">
+            <h2 class="text-lg font-bold">Console Output:</h2>
+            <div id="console-output" class="bg-gray-100 p-4 rounded h-64 overflow-y-auto text-sm font-mono"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { LogicLearning } from './src/simulators/logic/LogicLearning.js';
+        
+        // Capture console logs
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        const consoleOutput = document.getElementById('console-output');
+        
+        function addToConsole(type, ...args) {
+            const line = document.createElement('div');
+            line.className = type === 'error' ? 'text-red-600' : type === 'warn' ? 'text-yellow-600' : 'text-gray-800';
+            line.textContent = `[${type.toUpperCase()}] ${args.join(' ')}`;
+            consoleOutput.appendChild(line);
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+        
+        console.log = (...args) => {
+            originalLog(...args);
+            addToConsole('log', ...args);
+        };
+        
+        console.error = (...args) => {
+            originalError(...args);
+            addToConsole('error', ...args);
+        };
+        
+        console.warn = (...args) => {
+            originalWarn(...args);
+            addToConsole('warn', ...args);
+        };
+        
+        // Initialize logic learning
+        const logic = new LogicLearning();
+        const container = document.getElementById('simulator-container');
+        logic.render(container);
+        
+        // Test button
+        document.getElementById('test-circuit').addEventListener('click', () => {
+            console.log('=== Manual Test Started ===');
+            consoleOutput.innerHTML = '';
+            
+            // Force half-adder generation
+            logic.loadHalfAdder();
+            console.log('Half-adder loaded');
+            
+            // Generate circuit
+            logic.generateTruthTableAndCircuit();
+            console.log('Generation completed');
+        });
+        
+        // Auto-run test
+        setTimeout(() => {
+            console.log('=== Auto Test Started ===');
+            logic.loadHalfAdder();
+            logic.generateTruthTableAndCircuit();
+        }, 1000);
+    </script>
+</body>
+</html>
