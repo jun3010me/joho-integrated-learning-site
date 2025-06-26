@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Full Adder Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-8">
+    <h1 class="text-2xl font-bold mb-4">全加算回路テスト</h1>
+    
+    <div class="mb-4">
+        <p class="text-gray-600">全加算回路の完璧な描画をテストします。</p>
+    </div>
+    
+    <div id="simulator-container" class="border rounded p-4 bg-gray-50"></div>
+    
+    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="border rounded p-4 bg-white">
+            <h3 class="font-bold mb-2">全加算回路の構成:</h3>
+            <ul class="text-sm space-y-1">
+                <li>• <strong>XOR1</strong>: A XOR B → 中間信号1</li>
+                <li>• <strong>XOR2</strong>: 中間信号1 XOR C → S</li>
+                <li>• <strong>AND1</strong>: A AND B → 中間信号2</li>
+                <li>• <strong>AND2</strong>: C AND 中間信号1 → 中間信号3</li>
+                <li>• <strong>OR</strong>: 中間信号2 OR 中間信号3 → C_out</li>
+            </ul>
+        </div>
+        
+        <div class="border rounded p-4 bg-white">
+            <h3 class="font-bold mb-2">期待される配線:</h3>
+            <ul class="text-sm space-y-1">
+                <li>• A → XOR1, AND1</li>
+                <li>• B → XOR1, AND1</li>
+                <li>• C → XOR2, AND2</li>
+                <li>• XOR1出力 → XOR2, AND2</li>
+                <li>• AND1出力 → OR</li>
+                <li>• AND2出力 → OR</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="mt-4">
+        <button id="load-full-adder" class="bg-blue-500 text-white px-4 py-2 rounded mr-2">
+            全加算回路読み込み
+        </button>
+        <button id="generate-circuit" class="bg-green-500 text-white px-4 py-2 rounded">
+            回路図生成
+        </button>
+    </div>
+
+    <div class="mt-4 border rounded p-4 bg-gray-100">
+        <h3 class="font-bold mb-2">回路図レイアウト予想:</h3>
+        <pre class="text-xs font-mono whitespace-pre">
+A ○──┬─── XOR1 ⊕ ──┬─── XOR2 ⊕ ──── ○ S
+     │              │
+     └─── AND1 & ───┼─── OR ≥1 ───── ○ C_out
+                     │    │
+B ○──┴─── AND1 & ───┘    │
+                          │
+C ○────── XOR2 ⊕ ─────────┘
+     │
+     └─── AND2 & ─────────┘
+        </pre>
+    </div>
+
+    <script type="module">
+        import { LogicLearning } from './src/simulators/logic/LogicLearning.js';
+        
+        console.log('Starting full adder test...');
+        
+        const logic = new LogicLearning();
+        const container = document.getElementById('simulator-container');
+        logic.render(container);
+        
+        document.getElementById('load-full-adder').addEventListener('click', () => {
+            console.log('Loading full adder...');
+            logic.loadFullAdder();
+        });
+        
+        document.getElementById('generate-circuit').addEventListener('click', () => {
+            console.log('Generating full adder circuit...');
+            logic.generateTruthTableAndCircuit();
+        });
+        
+        // Auto-test
+        setTimeout(() => {
+            console.log('Auto-loading full adder...');
+            logic.loadFullAdder();
+            
+            setTimeout(() => {
+                console.log('Auto-generating full adder circuit...');
+                logic.generateTruthTableAndCircuit();
+            }, 500);
+        }, 1000);
+    </script>
+</body>
+</html>

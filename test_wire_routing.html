@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wire Routing Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-8">
+    <h1 class="text-2xl font-bold mb-4">Half-Adder Wire Routing Test</h1>
+    
+    <div class="mb-4">
+        <p class="text-gray-600">Testing corrected wire routing where A and B have separate paths to both gates.</p>
+    </div>
+    
+    <div id="simulator-container" class="border rounded p-4 bg-gray-50"></div>
+    
+    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="border rounded p-4 bg-white">
+            <h3 class="font-bold mb-2">Expected Wire Paths:</h3>
+            <ul class="text-sm space-y-1">
+                <li>• A → XOR gate (independent path)</li>
+                <li>• A → AND gate (independent path)</li>
+                <li>• B → XOR gate (independent path)</li>
+                <li>• B → AND gate (independent path)</li>
+                <li>• XOR gate → Output S</li>
+                <li>• AND gate → Output C</li>
+            </ul>
+        </div>
+        
+        <div class="border rounded p-4 bg-white">
+            <h3 class="font-bold mb-2">Visual Layout:</h3>
+            <pre class="text-xs font-mono">
+A ○────┬─────── XOR ⊕ ──── ○ S
+       │
+       └─────── AND & ──── ○ C
+       │
+B ○────┘
+            </pre>
+        </div>
+    </div>
+    
+    <div class="mt-4">
+        <button id="load-test" class="bg-blue-500 text-white px-4 py-2 rounded mr-2">
+            Load Half-Adder
+        </button>
+        <button id="generate-test" class="bg-green-500 text-white px-4 py-2 rounded">
+            Generate Circuit
+        </button>
+    </div>
+
+    <script type="module">
+        import { LogicLearning } from './src/simulators/logic/LogicLearning.js';
+        
+        console.log('Starting wire routing test...');
+        
+        const logic = new LogicLearning();
+        const container = document.getElementById('simulator-container');
+        logic.render(container);
+        
+        document.getElementById('load-test').addEventListener('click', () => {
+            console.log('Loading half-adder...');
+            logic.loadHalfAdder();
+        });
+        
+        document.getElementById('generate-test').addEventListener('click', () => {
+            console.log('Generating circuit...');
+            logic.generateTruthTableAndCircuit();
+        });
+        
+        // Auto-test
+        setTimeout(() => {
+            console.log('Auto-loading half-adder...');
+            logic.loadHalfAdder();
+            
+            setTimeout(() => {
+                console.log('Auto-generating circuit...');
+                logic.generateTruthTableAndCircuit();
+            }, 500);
+        }, 1000);
+    </script>
+</body>
+</html>

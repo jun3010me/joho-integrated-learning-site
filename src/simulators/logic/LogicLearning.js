@@ -463,6 +463,15 @@ export class LogicLearning {
         return this.createHalfAdderCircuit(variables);
     }
     
+    // Special case for full-adder (simple and reliable)
+    if (expressions.length === 2 && 
+        expressions.find(e => e.name === 'S' && e.formula === '(A XOR B) XOR C') &&
+        expressions.find(e => e.name === 'C' && e.formula === '(A AND B) OR (C AND (A XOR B))')) {
+        
+        console.log('Detected full-adder pattern - using simplified circuit generation');
+        return this.createFullAdderCircuit(variables);
+    }
+    
     const inputConnections = {};
     const allGates = [];
     const outputToGateMap = {};
@@ -604,6 +613,75 @@ export class LogicLearning {
         canvasSize,
         inputConnections,
         intermediateSignals: {}
+    };
+  }
+
+  createFullAdderCircuit(variables) {
+    console.log('Creating simplified full-adder circuit');
+    
+    const gates = [
+        {
+            id: 'xor1_gate',
+            type: 'XOR',
+            inputs: ['A', 'B'],
+            output: 'AB_XOR',
+            x: 200,
+            y: 100
+        },
+        {
+            id: 'xor2_gate',
+            type: 'XOR',
+            inputs: ['AB_XOR', 'C'],
+            output: 'S',
+            x: 380,
+            y: 100
+        },
+        {
+            id: 'and1_gate',
+            type: 'AND',
+            inputs: ['A', 'B'],
+            output: 'AB_AND',
+            x: 200,
+            y: 200
+        },
+        {
+            id: 'and2_gate',
+            type: 'AND',
+            inputs: ['C', 'AB_XOR'],
+            output: 'C_AB_AND',
+            x: 380,
+            y: 200
+        },
+        {
+            id: 'or_gate',
+            type: 'OR',
+            inputs: ['AB_AND', 'C_AB_AND'],
+            output: 'C',
+            x: 500,
+            y: 250
+        }
+    ];
+    
+    const inputConnections = {
+        'A': ['xor1_gate', 'and1_gate'],
+        'B': ['xor1_gate', 'and1_gate'],
+        'C': ['xor2_gate', 'and2_gate']
+    };
+    
+    const canvasSize = { width: 650, height: 350 };
+    
+    console.log('Full-adder circuit created:', { gates, inputConnections, canvasSize });
+    
+    return {
+        variables,
+        gates,
+        canvasSize,
+        inputConnections,
+        intermediateSignals: {
+            'AB_XOR': 'xor1_gate',
+            'AB_AND': 'and1_gate',
+            'C_AB_AND': 'and2_gate'
+        }
     };
   }
 
@@ -1053,7 +1131,7 @@ export class LogicLearning {
       ctx.strokeStyle = '#374151';
       ctx.lineWidth = 2;
       
-      // For each input variable, draw separate connections to each gate
+      // Draw wires from input variables to gates
       circuit.variables.forEach(inputVar => {
           const inputPos = varPos[inputVar];
           if (!inputPos) return;
@@ -1067,37 +1145,85 @@ export class LogicLearning {
           
           // Draw separate path for each connection
           connectedGates.forEach((gate, index) => {
-              const gateWidth = 70;
-              const gateHeight = 40;
-              
-              // Calculate input position on gate
-              const inputIndex = gate.inputs.indexOf(inputVar);
-              const gateInputY = gate.inputs.length === 1 ? 
-                  gate.y : 
-                  gate.y - gateHeight/4 + (inputIndex * gateHeight/2);
-              
-              const gateInputX = gate.x - gateWidth/2;
-              
-              // Create unique path for this input-gate connection
-              const pathOffset = index * 20; // Offset each path slightly
-              const midX = inputPos.x + 100 + pathOffset;
-              
-              console.log(`Drawing wire: ${inputVar} → ${gate.id} via path ${index + 1}`);
-              
-              ctx.beginPath();
-              ctx.moveTo(inputPos.x + 8, inputPos.y);
-              ctx.lineTo(midX, inputPos.y);
-              ctx.lineTo(midX, gateInputY);
-              ctx.lineTo(gateInputX, gateInputY);
-              ctx.stroke();
-              
-              // Draw connection dots
-              ctx.beginPath();
-              ctx.arc(midX, inputPos.y, 3, 0, 2 * Math.PI);
-              ctx.fillStyle = '#374151';
-              ctx.fill();
+              this.drawWireConnection(ctx, inputPos, gate, inputVar, index);
           });
       });
+      
+      // Draw wires between gates (intermediate signals)
+      circuit.gates.forEach(gate => {
+          gate.inputs.forEach(input => {
+              // Check if this input is an intermediate signal from another gate
+              const sourceGate = circuit.gates.find(g => g.output === input);
+              if (sourceGate) {
+                  console.log(`Drawing intermediate wire: ${sourceGate.id} → ${gate.id} (${input})`);
+                  this.drawIntermediateWire(ctx, sourceGate, gate, input);
+              }
+          });
+      });
+  }
+
+  drawWireConnection(ctx, inputPos, gate, inputVar, pathIndex) {
+      const gateWidth = 70;
+      const gateHeight = 40;
+      
+      // Calculate input position on gate
+      const inputIndex = gate.inputs.indexOf(inputVar);
+      const gateInputY = gate.inputs.length === 1 ? 
+          gate.y : 
+          gate.y - gateHeight/4 + (inputIndex * gateHeight/2);
+      
+      const gateInputX = gate.x - gateWidth/2;
+      
+      // Create unique path for this input-gate connection
+      const pathOffset = pathIndex * 25; // Offset each path slightly
+      const midX = inputPos.x + 100 + pathOffset;
+      
+      console.log(`Drawing wire: ${inputVar} → ${gate.id} via path ${pathIndex + 1}`);
+      
+      ctx.beginPath();
+      ctx.moveTo(inputPos.x + 8, inputPos.y);
+      ctx.lineTo(midX, inputPos.y);
+      ctx.lineTo(midX, gateInputY);
+      ctx.lineTo(gateInputX, gateInputY);
+      ctx.stroke();
+      
+      // Draw connection dots
+      ctx.beginPath();
+      ctx.arc(midX, inputPos.y, 3, 0, 2 * Math.PI);
+      ctx.fillStyle = '#374151';
+      ctx.fill();
+  }
+
+  drawIntermediateWire(ctx, sourceGate, targetGate, signalName) {
+      const gateWidth = 70;
+      const gateHeight = 40;
+      
+      // Source gate output position
+      const fromX = sourceGate.x + gateWidth/2;
+      const fromY = sourceGate.y;
+      
+      // Target gate input position
+      const inputIndex = targetGate.inputs.indexOf(signalName);
+      const toY = targetGate.inputs.length === 1 ? 
+          targetGate.y : 
+          targetGate.y - gateHeight/4 + (inputIndex * gateHeight/2);
+      const toX = targetGate.x - gateWidth/2;
+      
+      // Draw intermediate wire with red color
+      ctx.strokeStyle = '#dc2626';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(fromX, fromY);
+      
+      // Create a simple L-shaped path
+      const midX = fromX + 30;
+      ctx.lineTo(midX, fromY);
+      ctx.lineTo(midX, toY);
+      ctx.lineTo(toX, toY);
+      ctx.stroke();
+      
+      // Reset stroke color
+      ctx.strokeStyle = '#374151';
   }
 
   drawGateOnly(ctx, gate, circuit) {
