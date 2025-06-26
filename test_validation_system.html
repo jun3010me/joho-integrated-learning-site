@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Layout Validation System Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-8">
+    <h1 class="text-2xl font-bold mb-4">座標検証・レイアウト最適化システムテスト</h1>
+    
+    <div class="mb-4">
+        <p class="text-gray-600">描画後に実際の座標と期待座標を検証し、自動最適化を行うシステムをテストします。</p>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="border rounded p-4 bg-gray-50">
+            <h2 class="text-lg font-bold mb-4">半加算回路 - 検証テスト</h2>
+            <div id="half-adder-container"></div>
+            <div class="mt-4 space-y-2">
+                <button id="test-half-adder" class="w-full bg-blue-500 text-white px-4 py-2 rounded">
+                    半加算回路生成 + 検証
+                </button>
+                <div id="half-adder-results" class="text-sm bg-white p-2 rounded border"></div>
+            </div>
+        </div>
+        
+        <div class="border rounded p-4 bg-gray-50">
+            <h2 class="text-lg font-bold mb-4">全加算回路 - 検証テスト</h2>
+            <div id="full-adder-container"></div>
+            <div class="mt-4 space-y-2">
+                <button id="test-full-adder" class="w-full bg-green-500 text-white px-4 py-2 rounded">
+                    全加算回路生成 + 検証
+                </button>
+                <div id="full-adder-results" class="text-sm bg-white p-2 rounded border"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-8 border rounded p-4 bg-white">
+        <h3 class="font-bold mb-4">検証システムの機能:</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-blue-50 p-4 rounded">
+                <h4 class="font-semibold text-blue-800 mb-2">座標検証</h4>
+                <ul class="text-sm space-y-1">
+                    <li>• 期待座標 vs 実際座標</li>
+                    <li>• ゲート位置の正確性確認</li>
+                    <li>• 配置エラーの検出</li>
+                </ul>
+            </div>
+            <div class="bg-green-50 p-4 rounded">
+                <h4 class="font-semibold text-green-800 mb-2">品質評価</h4>
+                <ul class="text-sm space-y-1">
+                    <li>• ゲート間隔(30%)</li>
+                    <li>• 配線明確性(30%)</li>
+                    <li>• 整列性(20%)</li>
+                    <li>• 視覚バランス(20%)</li>
+                </ul>
+            </div>
+            <div class="bg-yellow-50 p-4 rounded">
+                <h4 class="font-semibold text-yellow-800 mb-2">自動最適化</h4>
+                <ul class="text-sm space-y-1">
+                    <li>• 重複解消</li>
+                    <li>• 間隔調整</li>
+                    <li>• 配線修正</li>
+                    <li>• 整列改善</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-4 border rounded p-4 bg-gray-100">
+        <h3 class="font-bold mb-2">検証項目チェックリスト:</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div>
+                <p class="font-semibold mb-2">✅ 座標精度:</p>
+                <ul class="space-y-1">
+                    <li>□ XOR/ANDゲートが期待位置に配置</li>
+                    <li>□ 入力A,B,Cが正しい座標</li>
+                    <li>□ 出力S,Cが適切な位置</li>
+                </ul>
+            </div>
+            <div>
+                <p class="font-semibold mb-2">✅ 品質基準:</p>
+                <ul class="space-y-1">
+                    <li>□ 品質スコア80点以上</li>
+                    <li>□ ゲート重複ゼロ</li>
+                    <li>□ 配線-ゲート衝突ゼロ</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-4 bg-blue-50 border border-blue-200 rounded p-4">
+        <h3 class="font-bold text-blue-800 mb-2">📊 リアルタイム検証結果:</h3>
+        <div id="validation-console" class="bg-white p-3 rounded border text-xs font-mono h-32 overflow-y-auto">
+            待機中...
+        </div>
+    </div>
+
+    <script type="module">
+        import { LogicLearning } from './src/simulators/logic/LogicLearning.js';
+        
+        const validationConsole = document.getElementById('validation-console');
+        
+        function logValidation(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            validationConsole.innerHTML += `[${timestamp}] ${message}\n`;
+            validationConsole.scrollTop = validationConsole.scrollHeight;
+        }
+        
+        // Capture console logs for validation display
+        const originalLog = console.log;
+        console.log = (...args) => {
+            originalLog(...args);
+            const message = args.join(' ');
+            if (message.includes('===') || message.includes('Gate') || message.includes('score') || message.includes('overlap')) {
+                logValidation(message);
+            }
+        };
+        
+        // Half adder test
+        const halfAdderLogic = new LogicLearning();
+        const halfAdderContainer = document.getElementById('half-adder-container');
+        halfAdderLogic.render(halfAdderContainer);
+        
+        // Full adder test  
+        const fullAdderLogic = new LogicLearning();
+        const fullAdderContainer = document.getElementById('full-adder-container');
+        fullAdderLogic.render(fullAdderContainer);
+        
+        document.getElementById('test-half-adder').addEventListener('click', () => {
+            logValidation('🧪 半加算回路テスト開始');
+            document.getElementById('half-adder-results').innerHTML = 'テスト実行中...';
+            
+            halfAdderLogic.loadHalfAdder();
+            setTimeout(() => {
+                halfAdderLogic.generateTruthTableAndCircuit();
+                
+                setTimeout(() => {
+                    document.getElementById('half-adder-results').innerHTML = 
+                        '✅ 半加算回路テスト完了 - コンソールで詳細確認';
+                }, 1000);
+            }, 300);
+        });
+        
+        document.getElementById('test-full-adder').addEventListener('click', () => {
+            logValidation('🧪 全加算回路テスト開始');
+            document.getElementById('full-adder-results').innerHTML = 'テスト実行中...';
+            
+            fullAdderLogic.loadFullAdder();
+            setTimeout(() => {
+                fullAdderLogic.generateTruthTableAndCircuit();
+                
+                setTimeout(() => {
+                    document.getElementById('full-adder-results').innerHTML = 
+                        '✅ 全加算回路テスト完了 - コンソールで詳細確認';
+                }, 1000);
+            }, 300);
+        });
+        
+        // Auto-test
+        logValidation('🚀 自動テスト開始');
+        setTimeout(() => {
+            document.getElementById('test-half-adder').click();
+            
+            setTimeout(() => {
+                document.getElementById('test-full-adder').click();
+            }, 3000);
+        }, 1000);
+    </script>
+</body>
+</html>
