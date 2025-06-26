@@ -364,28 +364,63 @@ export class LogicLearning {
   }
 
   createMergedCircuit(expressions, variables) {
-    let mergedGates = [];
-    const finalOutputNames = {};
+    const inputConnections = {};
+    const allGates = [];
+    const outputToGateMap = {};
 
-    expressions.forEach(expr => {
+    console.log('=== Circuit Generation Debug ===');
+    console.log('Input expressions:', expressions);
+
+    expressions.forEach((expr, exprIndex) => {
+        console.log(`\nProcessing expression ${exprIndex + 1}: ${expr.name} = ${expr.formula}`);
+        
         const { gates: parsedGates } = this.parseLogicExpression(expr.formula);
+        console.log('Parsed gates:', parsedGates);
 
-        parsedGates.forEach(gate => {
-            const newGateId = `m_gate_${mergedGates.length}`;
-            gate.id = newGateId;
-            gate.output = expr.name;
-            mergedGates.push(gate);
+        parsedGates.forEach((gate, gateIndex) => {
+            const gateId = `gate_${exprIndex}_${gateIndex}`;
+            const processedGate = {
+                id: gateId,
+                type: gate.type,
+                inputs: gate.inputs.slice(),
+                output: expr.name,
+                x: 0,
+                y: 0
+            };
+
+            console.log(`Gate ${gateId}: ${gate.type} with inputs [${gate.inputs.join(', ')}] -> ${expr.name}`);
+
+            gate.inputs.forEach(input => {
+                if (variables.includes(input)) {
+                    if (!inputConnections[input]) {
+                        inputConnections[input] = [];
+                    }
+                    inputConnections[input].push(gateId);
+                    console.log(`Input ${input} connects to gate ${gateId}`);
+                }
+            });
+
+            allGates.push(processedGate);
+            outputToGateMap[expr.name] = gateId;
         });
     });
 
-    const { layout, canvasSize } = this.calculateLayout(mergedGates, variables);
-    mergedGates.forEach(gate => {
+    console.log('\nFinal input connections:', inputConnections);
+    console.log('All gates:', allGates);
+
+    const { layout, canvasSize } = this.calculateLayout(allGates, variables);
+    allGates.forEach(gate => {
         const pos = layout[gate.id];
         gate.x = pos?.x || 250;
         gate.y = pos?.y || 150;
     });
 
-    return { variables, gates: mergedGates, canvasSize };
+    return { 
+        variables, 
+        gates: allGates, 
+        canvasSize,
+        inputConnections 
+    };
   }
 
   tokenize(expression) {
@@ -508,6 +543,7 @@ export class LogicLearning {
         this.drawVariable(ctx, v, varPos[v].x, varPos[v].y);
     });
 
+    this.drawInputBranches(ctx, circuit, varPos);
     const wireRouter = new this.WireRouter(ctx, circuit.gates);
     circuit.gates.forEach(g => this.drawGate(ctx, g, circuit, varPos, wireRouter));
   }
@@ -519,6 +555,50 @@ export class LogicLearning {
       ctx.fillText(text, x - 30, y);
   }
 
+  drawInputBranches(ctx, circuit, varPos) {
+      if (!circuit.inputConnections) return;
+      
+      console.log('Drawing input branches:', circuit.inputConnections);
+      
+      Object.entries(circuit.inputConnections).forEach(([inputVar, connectedGateIds]) => {
+          if (connectedGateIds.length <= 1) return;
+          
+          const inputPos = varPos[inputVar];
+          if (!inputPos) return;
+          
+          const connectedGates = connectedGateIds.map(gateId => 
+              circuit.gates.find(g => g.id === gateId)
+          ).filter(Boolean);
+          
+          if (connectedGates.length <= 1) return;
+          
+          console.log(`Input ${inputVar} branches to ${connectedGates.length} gates:`, connectedGates.map(g => g.id));
+          
+          const branchX = inputPos.x + 80;
+          
+          ctx.strokeStyle = '#374151';
+          ctx.lineWidth = 2;
+          
+          ctx.beginPath();
+          ctx.moveTo(inputPos.x + 8, inputPos.y);
+          ctx.lineTo(branchX, inputPos.y);
+          ctx.stroke();
+          
+          connectedGates.forEach(gate => {
+              ctx.beginPath();
+              ctx.moveTo(branchX, inputPos.y);
+              ctx.lineTo(branchX, gate.y);
+              ctx.lineTo(gate.x - 35, gate.y);
+              ctx.stroke();
+              
+              ctx.beginPath();
+              ctx.arc(branchX, inputPos.y, 4, 0, 2 * Math.PI);
+              ctx.fillStyle = '#374151';
+              ctx.fill();
+          });
+      });
+  }
+
   drawGate(ctx, gate, circuit, varPos, wireRouter) {
       const { x, y, inputs, type, output } = gate;
       const gateWidth = 70, gateHeight = 40;
@@ -526,10 +606,20 @@ export class LogicLearning {
       inputs.forEach((input, i) => {
           const to = { x: x - gateWidth / 2, y: (inputs.length === 1) ? y : y - gateHeight / 4 + (i * gateHeight / 2) };
           const fromGate = circuit.gates.find(g => g.output === input);
-          const from = fromGate ? { x: fromGate.x + gateWidth / 2, y: fromGate.y } : 
-                      varPos[input] ? { x: varPos[input].x + 8, y: varPos[input].y } : 
-                      { x: 60, y: y };
-          wireRouter.route(from, to, !!fromGate);
+          
+          if (fromGate) {
+              const from = { x: fromGate.x + gateWidth / 2, y: fromGate.y };
+              wireRouter.route(from, to, true);
+          } else if (varPos[input]) {
+              const inputConnections = circuit.inputConnections && circuit.inputConnections[input];
+              if (inputConnections && inputConnections.length > 1) {
+                  const from = { x: x - 35, y: y };
+                  wireRouter.route(from, to, false);
+              } else {
+                  const from = { x: varPos[input].x + 8, y: varPos[input].y };
+                  wireRouter.route(from, to, false);
+              }
+          }
       });
 
       this.drawGateSymbol(ctx, type, x, y, gateWidth, gateHeight);
