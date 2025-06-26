@@ -265,23 +265,64 @@ export class LogicLearning {
         ? this.expressions 
         : [{ name: 'Y', formula: this.currentExpression.trim() }];
 
-    if (expressionsToProcess.every(e => !e.formula)) {
+    // Validate expressions
+    if (!expressionsToProcess || expressionsToProcess.length === 0) {
       alert('論理式を入力または選択してください');
       return;
     }
 
+    if (expressionsToProcess.every(e => !e.formula || e.formula.trim() === '')) {
+      alert('論理式を入力または選択してください');
+      return;
+    }
+
+    console.log('=== Starting Truth Table and Circuit Generation ===');
+    console.log('Expressions to process:', expressionsToProcess);
+
     try {
+      // Validate all expressions first
+      for (let i = 0; i < expressionsToProcess.length; i++) {
+        const expr = expressionsToProcess[i];
+        if (!expr || typeof expr !== 'object' || !expr.formula) {
+          throw new Error(`Invalid expression at index ${i}: ${JSON.stringify(expr)}`);
+        }
+        console.log(`Validating expression ${i + 1}: ${expr.name} = ${expr.formula}`);
+      }
+
       const allFormulas = expressionsToProcess.map(e => e.formula).join(' ');
       const variables = this.extractVariables(allFormulas);
+      
+      console.log('Extracted variables:', variables);
+      
+      if (!variables || variables.length === 0) {
+        throw new Error('No variables found in expressions');
+      }
+
       const table = this.createTruthTable(expressionsToProcess, variables);
       this.displayTruthTable(table);
+      
       const mergedCircuit = this.createMergedCircuit(expressionsToProcess, variables);
       this.displayCircuitDiagram(mergedCircuit);
+      
+      console.log('✅ Truth table and circuit generation completed successfully');
     } catch (error) {
-      console.error('❌ Error:', error);
+      console.error('❌ Error in generateTruthTableAndCircuit:', error);
+      console.error('Error stack:', error.stack);
+      
       const msg = error.message || 'An unknown error occurred.';
-      document.getElementById('truth-table-display').innerHTML = `<div class="text-red-600 text-center">⚠️ ${msg}</div>`;
-      document.getElementById('circuit-display').innerHTML = `<div class="text-red-600 text-center">⚠️ ${msg}</div>`;
+      const errorDisplay = `
+        <div class="text-red-600 text-center p-4">
+          <p class="font-bold">⚠️ エラーが発生しました</p>
+          <p class="text-sm mt-2">${msg}</p>
+          <button onclick="console.log('Debug info:', ${JSON.stringify(expressionsToProcess)})" 
+                  class="mt-2 px-4 py-2 bg-red-100 text-red-800 rounded text-xs">
+            デバッグ情報を表示
+          </button>
+        </div>
+      `;
+      
+      document.getElementById('truth-table-display').innerHTML = errorDisplay;
+      document.getElementById('circuit-display').innerHTML = errorDisplay;
     }
   }
 
@@ -291,26 +332,70 @@ export class LogicLearning {
   }
 
   createTruthTable(expressions, variables) {
+    if (!expressions || !Array.isArray(expressions) || expressions.length === 0) {
+      throw new Error('Invalid expressions array for truth table creation');
+    }
+    
+    if (!variables || !Array.isArray(variables) || variables.length === 0) {
+      throw new Error('Invalid variables array for truth table creation');
+    }
+
+    console.log('Creating truth table for:', expressions.length, 'expressions and', variables.length, 'variables');
+
     const rows = Math.pow(2, variables.length);
     const table = [];
+    
     for (let i = 0; i < rows; i++) {
       const row = { inputs: {}, results: {} };
+      
+      // Set input values for this row
       for (let j = 0; j < variables.length; j++) {
         row.inputs[variables[j]] = (i >> (variables.length - 1 - j)) & 1;
       }
-      expressions.forEach(expr => {
-        row.results[expr.name] = this.evaluateExpression(expr.formula, row.inputs);
+      
+      // Evaluate each expression for this row
+      expressions.forEach((expr, exprIndex) => {
+        try {
+          if (!expr || !expr.name || !expr.formula) {
+            throw new Error(`Invalid expression at index ${exprIndex}: ${JSON.stringify(expr)}`);
+          }
+          
+          console.log(`Evaluating row ${i}, expression "${expr.name}": ${expr.formula} with inputs:`, row.inputs);
+          row.results[expr.name] = this.evaluateExpression(expr.formula, row.inputs);
+          console.log(`Result for ${expr.name}: ${row.results[expr.name]}`);
+        } catch (error) {
+          console.error(`Error evaluating expression "${expr.name}" in row ${i}:`, error);
+          row.results[expr.name] = 0; // Default to 0 on error
+        }
       });
+      
       table.push(row);
     }
+    
+    console.log('Truth table created successfully with', table.length, 'rows');
     return { expressions, variables, table };
   }
 
   evaluateExpression(expression, values) {
+    if (!expression || typeof expression !== 'string') {
+      console.error('Invalid expression:', expression);
+      return 0;
+    }
+    
     const upperExpr = expression.toUpperCase();
     const tokens = this.tokenize(upperExpr);
+    
+    if (!tokens || tokens.length === 0) {
+      console.error('No tokens generated from expression:', expression);
+      return 0;
+    }
 
     const jsTokens = tokens.map(token => {
+        if (!token || typeof token !== 'string') {
+          console.error('Invalid token:', token);
+          return 'false';
+        }
+        
         if (values.hasOwnProperty(token)) {
             return values[token] === 1 ? 'true' : 'false';
         }
@@ -322,6 +407,7 @@ export class LogicLearning {
             case '(': return '(';
             case ')': return ')';
             default:
+                console.error(`Invalid token "${token}" in expression`);
                 throw new Error(`Invalid token "${token}" in expression`);
         }
     });
@@ -459,6 +545,10 @@ export class LogicLearning {
   }
 
   tokenize(expression) {
+    if (!expression || typeof expression !== 'string') {
+      console.error('Invalid expression for tokenization:', expression);
+      return [];
+    }
     return expression.replace(/\(/g, ' ( ').replace(/\)/g, ' ) ').split(/\s+/).filter(Boolean);
   }
 
@@ -643,9 +733,19 @@ export class LogicLearning {
   }
 
   tokenizeExpression(expression) {
+    if (!expression || typeof expression !== 'string') {
+      console.error('Invalid expression for tokenization:', expression);
+      return [];
+    }
+    
     const tokens = [];
     let i = 0;
     const expr = expression.toUpperCase().trim();
+    
+    if (expr.length === 0) {
+      console.error('Empty expression provided');
+      return [];
+    }
     
     while (i < expr.length) {
         if (expr[i] === ' ') {
@@ -680,6 +780,16 @@ export class LogicLearning {
   }
 
   parseTokens(tokens, pos) {
+    if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
+      console.error('Invalid tokens array:', tokens);
+      throw new Error('Invalid tokens array provided');
+    }
+    
+    if (pos >= tokens.length) {
+      console.error('Position out of bounds:', pos, 'tokens length:', tokens.length);
+      throw new Error('Unexpected end of expression');
+    }
+    
     return this.parseOr(tokens, pos);
   }
 
@@ -732,11 +842,18 @@ export class LogicLearning {
   }
 
   parsePrimary(tokens, pos) {
-    if (pos >= tokens.length) {
+    if (!tokens || !Array.isArray(tokens) || pos >= tokens.length) {
+        console.error('Invalid tokens or position:', { tokens, pos, tokensLength: tokens?.length });
         throw new Error('Unexpected end of expression');
     }
     
-    if (tokens[pos] === '(') {
+    const currentToken = tokens[pos];
+    if (!currentToken || typeof currentToken !== 'string') {
+        console.error('Invalid token at position', pos, ':', currentToken);
+        throw new Error(`Invalid token at position ${pos}`);
+    }
+    
+    if (currentToken === '(') {
         const { node, pos: newPos } = this.parseTokens(tokens, pos + 1);
         if (newPos >= tokens.length || tokens[newPos] !== ')') {
             throw new Error('Missing closing parenthesis');
@@ -744,20 +861,39 @@ export class LogicLearning {
         return { node, pos: newPos + 1 };
     }
     
-    if (/[A-Z]/.test(tokens[pos])) {
-        return { node: { type: 'VARIABLE', name: tokens[pos] }, pos: pos + 1 };
+    if (/[A-Z]/.test(currentToken)) {
+        return { node: { type: 'VARIABLE', name: currentToken }, pos: pos + 1 };
     }
     
-    throw new Error(`Unexpected token: ${tokens[pos]}`);
+    throw new Error(`Unexpected token: ${currentToken}`);
   }
 
   convertTreeToGates(tree) {
+    if (!tree || typeof tree !== 'object') {
+      console.error('Invalid tree object:', tree);
+      return [];
+    }
+    
     const gates = [];
     let gateId = 0;
     
     const processNode = (node) => {
+        if (!node || typeof node !== 'object' || !node.type) {
+            console.error('Invalid node object:', node);
+            throw new Error('Invalid node in expression tree');
+        }
+        
         if (node.type === 'VARIABLE') {
+            if (!node.name) {
+                console.error('Variable node missing name:', node);
+                throw new Error('Variable node missing name');
+            }
             return node.name;
+        }
+        
+        if (!node.inputs || !Array.isArray(node.inputs)) {
+            console.error('Node missing inputs array:', node);
+            throw new Error('Node missing inputs array');
         }
         
         const inputs = node.inputs.map(input => processNode(input));
@@ -772,13 +908,18 @@ export class LogicLearning {
         return gate.output;
     };
     
-    processNode(tree);
-    
-    if (gates.length > 0) {
-        gates[gates.length - 1].output = 'FINAL';
+    try {
+        processNode(tree);
+        
+        if (gates.length > 0) {
+            gates[gates.length - 1].output = 'FINAL';
+        }
+        
+        return gates;
+    } catch (error) {
+        console.error('Error converting tree to gates:', error);
+        throw error;
     }
-    
-    return gates;
   }
 
   drawLogicCircuit(circuit) {
