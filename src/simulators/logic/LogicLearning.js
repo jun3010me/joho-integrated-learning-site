@@ -365,36 +365,17 @@ export class LogicLearning {
 
   createMergedCircuit(expressions, variables) {
     let mergedGates = [];
-    const gateHashes = new Map();
     const finalOutputNames = {};
 
     expressions.forEach(expr => {
         const { gates: parsedGates } = this.parseLogicExpression(expr.formula);
-        const outputMap = {};
 
         parsedGates.forEach(gate => {
-            gate.inputs = gate.inputs.map(input => outputMap[input] || input);
-            const gateHash = `${gate.type}:${gate.inputs.slice().sort().join(',')}`;
-
-            if (gateHashes.has(gateHash)) {
-                const existingGate = gateHashes.get(gateHash);
-                outputMap[gate.output] = existingGate.output;
-            } else {
-                const newGateId = `m_gate_${mergedGates.length}`;
-                const newGateOutput = `${newGateId}_out`;
-                outputMap[gate.output] = newGateOutput;
-                gate.id = newGateId;
-                gate.output = newGateOutput;
-                mergedGates.push(gate);
-                gateHashes.set(gateHash, gate);
-            }
+            const newGateId = `m_gate_${mergedGates.length}`;
+            gate.id = newGateId;
+            gate.output = expr.name;
+            mergedGates.push(gate);
         });
-        const finalOutputInternalName = outputMap[parsedGates[parsedGates.length - 1]?.output];
-        if (finalOutputInternalName) finalOutputNames[finalOutputInternalName] = expr.name;
-    });
-
-    mergedGates.forEach(gate => {
-        if (finalOutputNames[gate.output]) gate.output = finalOutputNames[gate.output];
     });
 
     const { layout, canvasSize } = this.calculateLayout(mergedGates, variables);
@@ -545,7 +526,9 @@ export class LogicLearning {
       inputs.forEach((input, i) => {
           const to = { x: x - gateWidth / 2, y: (inputs.length === 1) ? y : y - gateHeight / 4 + (i * gateHeight / 2) };
           const fromGate = circuit.gates.find(g => g.output === input);
-          const from = fromGate ? { x: fromGate.x + gateWidth / 2, y: fromGate.y } : { x: varPos[input].x, y: varPos[input].y };
+          const from = fromGate ? { x: fromGate.x + gateWidth / 2, y: fromGate.y } : 
+                      varPos[input] ? { x: varPos[input].x + 8, y: varPos[input].y } : 
+                      { x: 60, y: y };
           wireRouter.route(from, to, !!fromGate);
       });
 
@@ -663,30 +646,28 @@ export class LogicLearning {
           const endX = to.x;
           const endY = to.y;
 
-          const midX = startX + 60;
-
           this.ctx.moveTo(startX, startY);
-          this.ctx.lineTo(midX, startY);
-          
-          const obstacle = this.obstacles.find(o => 
-              midX > o.x - o.width/2 && midX < o.x + o.width/2 &&
-              ((startY < o.y && endY > o.y) || (startY > o.y && endY < o.y))
-          );
 
-          if (obstacle) {
-              const detourX = obstacle.x - obstacle.width/2 - 20;
-              this.ctx.lineTo(detourX, startY);
-              this.ctx.lineTo(detourX, endY);
+          if (Math.abs(startY - endY) < 5) {
+              this.ctx.lineTo(endX, endY);
           } else {
+              const midX = startX + Math.max(60, (endX - startX) * 0.6);
+              this.ctx.lineTo(midX, startY);
               this.ctx.lineTo(midX, endY);
+              this.ctx.lineTo(endX, endY);
           }
 
-          this.ctx.lineTo(endX, endY);
           this.ctx.stroke();
 
-          if (!isFinalOutput && !isIntermediate) {
+          if (isFinalOutput) {
               this.ctx.beginPath();
-              this.ctx.arc(midX, startY, 3, 0, 2 * Math.PI);
+              this.ctx.arc(endX, endY, 4, 0, 2 * Math.PI);
+              this.ctx.fillStyle = '#374151';
+              this.ctx.fill();
+          } else if (!isIntermediate) {
+              const dotX = startX + 30;
+              this.ctx.beginPath();
+              this.ctx.arc(dotX, startY, 3, 0, 2 * Math.PI);
               this.ctx.fillStyle = '#374151';
               this.ctx.fill();
           }
