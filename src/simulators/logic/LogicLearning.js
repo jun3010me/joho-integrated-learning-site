@@ -519,11 +519,33 @@ export class LogicLearning {
     console.log('All gates:', allGates);
     console.log('Intermediate signals:', intermediateSignals);
 
-    const { layout, canvasSize } = this.calculateLayout(allGates, variables);
-    allGates.forEach(gate => {
+    let layout, canvasSize;
+    
+    try {
+        const layoutResult = this.calculateLayout(allGates, variables);
+        layout = layoutResult.layout;
+        canvasSize = layoutResult.canvasSize;
+        console.log('Layout calculated successfully:', layout);
+        console.log('Canvas size:', canvasSize);
+    } catch (error) {
+        console.error('Layout calculation failed, using simple fallback:', error);
+        layout = {};
+        canvasSize = { width: 600, height: 400 };
+    }
+    
+    // Position gates with fallback to simple layout
+    allGates.forEach((gate, index) => {
         const pos = layout[gate.id];
-        gate.x = pos?.x || 250;
-        gate.y = pos?.y || 150;
+        if (pos && pos.x && pos.y) {
+            gate.x = pos.x;
+            gate.y = pos.y;
+        } else {
+            // Simple fallback layout: gates in a column
+            gate.x = 300; // Center X
+            gate.y = 100 + (index * 80); // Spaced vertically
+            console.warn(`Using fallback position for gate ${gate.id}`);
+        }
+        console.log(`Gate ${gate.id} positioned at (${gate.x}, ${gate.y})`);
     });
 
     return { 
@@ -923,13 +945,27 @@ export class LogicLearning {
   }
 
   drawLogicCircuit(circuit) {
+    console.log('=== Drawing Logic Circuit ===');
+    console.log('Circuit data:', circuit);
+    
     const canvas = document.getElementById('circuit-canvas');
-    if (!canvas) return;
+    if (!canvas) {
+        console.error('Canvas element not found!');
+        return;
+    }
+    
+    console.log('Canvas element found:', canvas);
+    console.log('Canvas size:', circuit.canvasSize);
+    
     canvas.width = circuit.canvasSize.width;
     canvas.height = circuit.canvasSize.height;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#fdfdfd'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#fdfdfd'; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    console.log('Gates to draw:', circuit.gates);
+    console.log('Variables:', circuit.variables);
 
     const varPos = {};
     const yStep = 100;
@@ -937,12 +973,20 @@ export class LogicLearning {
     circuit.variables.forEach((v, i) => {
         const y = yStart > 0 ? yStart + i * yStep : 100 + i * yStep;
         varPos[v] = { x: 60, y: y };
+        console.log(`Drawing variable ${v} at position:`, varPos[v]);
         this.drawVariable(ctx, v, varPos[v].x, varPos[v].y);
     });
 
     this.drawInputBranches(ctx, circuit, varPos);
     const wireRouter = new this.WireRouter(ctx, circuit.gates);
-    circuit.gates.forEach(g => this.drawGate(ctx, g, circuit, varPos, wireRouter));
+    
+    console.log('Starting to draw gates...');
+    circuit.gates.forEach((g, index) => {
+        console.log(`Drawing gate ${index + 1}:`, g);
+        this.drawGate(ctx, g, circuit, varPos, wireRouter);
+    });
+    
+    console.log('Circuit drawing completed');
   }
 
   drawVariable(ctx, text, x, y) {
@@ -997,33 +1041,53 @@ export class LogicLearning {
   }
 
   drawGate(ctx, gate, circuit, varPos, wireRouter) {
+      console.log('Drawing gate:', gate);
       const { x, y, inputs, type, output } = gate;
+      
+      if (x === undefined || y === undefined || x === null || y === null) {
+          console.error('Invalid gate position:', { x, y, gate });
+          return;
+      }
+      
       const gateWidth = 70, gateHeight = 40;
+      console.log(`Gate ${gate.id} at position (${x}, ${y}) with type ${type}`);
 
+      // Draw input wires
       inputs.forEach((input, i) => {
           const to = { x: x - gateWidth / 2, y: (inputs.length === 1) ? y : y - gateHeight / 4 + (i * gateHeight / 2) };
           const fromGate = circuit.gates.find(g => g.output === input);
           
+          console.log(`Processing input ${input} for gate ${gate.id}`);
+          
           if (fromGate) {
               const from = { x: fromGate.x + gateWidth / 2, y: fromGate.y };
+              console.log(`Drawing wire from gate ${fromGate.id} to gate ${gate.id}`);
               wireRouter.route(from, to, true);
           } else if (varPos[input]) {
               const inputConnections = circuit.inputConnections && circuit.inputConnections[input];
               if (inputConnections && inputConnections.length > 1) {
                   const from = { x: x - 35, y: y };
+                  console.log(`Drawing branched wire for input ${input}`);
                   wireRouter.route(from, to, false);
               } else {
                   const from = { x: varPos[input].x + 8, y: varPos[input].y };
+                  console.log(`Drawing direct wire from input ${input} to gate ${gate.id}`);
                   wireRouter.route(from, to, false);
               }
+          } else {
+              console.error(`Input ${input} not found in variables or gates`);
           }
       });
 
+      // Draw the gate symbol
+      console.log(`Drawing gate symbol: ${type} at (${x}, ${y})`);
       this.drawGateSymbol(ctx, type, x, y, gateWidth, gateHeight);
 
+      // Draw output wire and label if this is a final output
       if (['S', 'C', 'Y'].includes(output)) {
           const from = { x: x + gateWidth / 2, y: y };
           const to = { x: ctx.canvas.width - 60, y: y };
+          console.log(`Drawing output wire for ${output}`);
           wireRouter.route(from, to, true, true);
           this.drawOutputLabel(ctx, output, to.x, to.y);
       }
@@ -1052,6 +1116,8 @@ export class LogicLearning {
   }
 
   drawGateSymbol(ctx, type, x, y, width, height) {
+    console.log(`Drawing gate symbol: ${type} at (${x}, ${y}) with size ${width}x${height}`);
+    
     const styles = {
       AND:    { fill: '#dbeafe', stroke: '#1e40af', symbol: null },
       OR:     { fill: '#dcfce7', stroke: '#166534', symbol: '≥1' },
@@ -1059,7 +1125,13 @@ export class LogicLearning {
       XOR:    { fill: '#f3e8ff', stroke: '#7c3aed', symbol: '=1' },
       BUFFER: { fill: '#f9fafb', stroke: '#6b7280', symbol: '1' }
     };
+    
     const style = styles[type];
+    if (!style) {
+        console.error(`Unknown gate type: ${type}`);
+        return;
+    }
+    
     const halfHeight = height / 2;
 
     ctx.fillStyle = style.fill;
@@ -1124,6 +1196,8 @@ export class LogicLearning {
       }
 
       route(from, to, isIntermediate, isFinalOutput = false) {
+          console.log(`Routing wire from (${from.x}, ${from.y}) to (${to.x}, ${to.y}), intermediate: ${isIntermediate}, final: ${isFinalOutput}`);
+          
           this.ctx.strokeStyle = isIntermediate ? '#dc2626' : '#374151';
           this.ctx.lineWidth = 2;
           this.ctx.beginPath();
