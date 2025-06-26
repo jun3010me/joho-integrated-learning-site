@@ -576,16 +576,16 @@ export class LogicLearning {
             type: 'XOR',
             inputs: ['A', 'B'],
             output: 'S',
-            x: 300,
-            y: 150
+            x: 280,
+            y: 130
         },
         {
             id: 'and_gate', 
             type: 'AND',
             inputs: ['A', 'B'],
             output: 'C',
-            x: 300,
-            y: 250
+            x: 280,
+            y: 270
         }
     ];
     
@@ -1027,13 +1027,14 @@ export class LogicLearning {
         this.drawVariable(ctx, v, varPos[v].x, varPos[v].y);
     });
 
-    this.drawInputBranches(ctx, circuit, varPos);
-    const wireRouter = new this.WireRouter(ctx, circuit.gates);
+    // Draw all input wires first with separate paths
+    this.drawInputWires(ctx, circuit, varPos);
     
+    // Then draw gates without input wires (gates only)
     console.log('Starting to draw gates...');
     circuit.gates.forEach((g, index) => {
         console.log(`Drawing gate ${index + 1}:`, g);
-        this.drawGate(ctx, g, circuit, varPos, wireRouter);
+        this.drawGateOnly(ctx, g, circuit);
     });
     
     console.log('Circuit drawing completed');
@@ -1044,6 +1045,92 @@ export class LogicLearning {
       ctx.strokeStyle = '#1e40af'; ctx.stroke(); ctx.fillStyle = '#1e40af'; ctx.font = 'bold 16px Arial';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(text, x - 30, y);
+  }
+
+  drawInputWires(ctx, circuit, varPos) {
+      console.log('Drawing input wires with separate paths');
+      
+      ctx.strokeStyle = '#374151';
+      ctx.lineWidth = 2;
+      
+      // For each input variable, draw separate connections to each gate
+      circuit.variables.forEach(inputVar => {
+          const inputPos = varPos[inputVar];
+          if (!inputPos) return;
+          
+          // Find all gates that use this input
+          const connectedGates = circuit.gates.filter(gate => 
+              gate.inputs.includes(inputVar)
+          );
+          
+          console.log(`Input ${inputVar} connects to gates:`, connectedGates.map(g => g.id));
+          
+          // Draw separate path for each connection
+          connectedGates.forEach((gate, index) => {
+              const gateWidth = 70;
+              const gateHeight = 40;
+              
+              // Calculate input position on gate
+              const inputIndex = gate.inputs.indexOf(inputVar);
+              const gateInputY = gate.inputs.length === 1 ? 
+                  gate.y : 
+                  gate.y - gateHeight/4 + (inputIndex * gateHeight/2);
+              
+              const gateInputX = gate.x - gateWidth/2;
+              
+              // Create unique path for this input-gate connection
+              const pathOffset = index * 20; // Offset each path slightly
+              const midX = inputPos.x + 100 + pathOffset;
+              
+              console.log(`Drawing wire: ${inputVar} → ${gate.id} via path ${index + 1}`);
+              
+              ctx.beginPath();
+              ctx.moveTo(inputPos.x + 8, inputPos.y);
+              ctx.lineTo(midX, inputPos.y);
+              ctx.lineTo(midX, gateInputY);
+              ctx.lineTo(gateInputX, gateInputY);
+              ctx.stroke();
+              
+              // Draw connection dots
+              ctx.beginPath();
+              ctx.arc(midX, inputPos.y, 3, 0, 2 * Math.PI);
+              ctx.fillStyle = '#374151';
+              ctx.fill();
+          });
+      });
+  }
+
+  drawGateOnly(ctx, gate, circuit) {
+      console.log('Drawing gate without input wires:', gate);
+      const { x, y, type, output } = gate;
+      
+      if (x === undefined || y === undefined || x === null || y === null) {
+          console.error('Invalid gate position:', { x, y, gate });
+          return;
+      }
+      
+      const gateWidth = 70, gateHeight = 40;
+      console.log(`Gate ${gate.id} at position (${x}, ${y}) with type ${type}`);
+
+      // Draw the gate symbol only
+      console.log(`Drawing gate symbol: ${type} at (${x}, ${y})`);
+      this.drawGateSymbol(ctx, type, x, y, gateWidth, gateHeight);
+
+      // Draw output wire and label if this is a final output
+      if (['S', 'C', 'Y'].includes(output)) {
+          const from = { x: x + gateWidth / 2, y: y };
+          const to = { x: ctx.canvas.width - 60, y: y };
+          console.log(`Drawing output wire for ${output}`);
+          
+          ctx.strokeStyle = '#374151';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(from.x, from.y);
+          ctx.lineTo(to.x, to.y);
+          ctx.stroke();
+          
+          this.drawOutputLabel(ctx, output, to.x, to.y);
+      }
   }
 
   drawInputBranches(ctx, circuit, varPos) {
