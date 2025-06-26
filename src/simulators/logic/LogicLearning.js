@@ -367,6 +367,8 @@ export class LogicLearning {
     const inputConnections = {};
     const allGates = [];
     const outputToGateMap = {};
+    const intermediateSignals = {};
+    let gateCounter = 0;
 
     console.log('=== Circuit Generation Debug ===');
     console.log('Input expressions:', expressions);
@@ -378,19 +380,35 @@ export class LogicLearning {
         console.log('Parsed gates:', parsedGates);
 
         parsedGates.forEach((gate, gateIndex) => {
-            const gateId = `gate_${exprIndex}_${gateIndex}`;
+            const gateId = `gate_${gateCounter++}`;
+            let outputName;
+            
+            if (gateIndex === parsedGates.length - 1) {
+                outputName = expr.name;
+            } else {
+                outputName = `intermediate_${gateId}`;
+                intermediateSignals[outputName] = gateId;
+            }
+            
             const processedGate = {
                 id: gateId,
                 type: gate.type,
-                inputs: gate.inputs.slice(),
-                output: expr.name,
+                inputs: gate.inputs.map(input => {
+                    if (input.startsWith('temp_')) {
+                        const tempIndex = parseInt(input.replace('temp_', ''));
+                        const referencedGateIndex = gateCounter - (parsedGates.length - tempIndex) - 1;
+                        return `intermediate_gate_${referencedGateIndex}`;
+                    }
+                    return input;
+                }),
+                output: outputName,
                 x: 0,
                 y: 0
             };
 
-            console.log(`Gate ${gateId}: ${gate.type} with inputs [${gate.inputs.join(', ')}] -> ${expr.name}`);
+            console.log(`Gate ${gateId}: ${gate.type} with inputs [${processedGate.inputs.join(', ')}] -> ${outputName}`);
 
-            gate.inputs.forEach(input => {
+            processedGate.inputs.forEach(input => {
                 if (variables.includes(input)) {
                     if (!inputConnections[input]) {
                         inputConnections[input] = [];
@@ -401,12 +419,17 @@ export class LogicLearning {
             });
 
             allGates.push(processedGate);
-            outputToGateMap[expr.name] = gateId;
+            if (outputName === expr.name) {
+                outputToGateMap[expr.name] = gateId;
+            }
         });
     });
 
+    this.updateIntermediateConnections(allGates, intermediateSignals);
+
     console.log('\nFinal input connections:', inputConnections);
     console.log('All gates:', allGates);
+    console.log('Intermediate signals:', intermediateSignals);
 
     const { layout, canvasSize } = this.calculateLayout(allGates, variables);
     allGates.forEach(gate => {
@@ -419,8 +442,18 @@ export class LogicLearning {
         variables, 
         gates: allGates, 
         canvasSize,
-        inputConnections 
+        inputConnections,
+        intermediateSignals
     };
+  }
+
+  updateIntermediateConnections(allGates, intermediateSignals) {
+    allGates.forEach(gate => {
+        gate.inputs = gate.inputs.map(input => {
+            const matchingGate = allGates.find(g => g.output === input);
+            return matchingGate ? matchingGate.output : input;
+        });
+    });
   }
 
   tokenize(expression) {
@@ -486,43 +519,159 @@ export class LogicLearning {
   }
 
   parseLogicExpression(expression) {
-    const precedence = { 'NOT': 4, 'XOR': 3, 'AND': 2, 'OR': 1 };
-    const operators = new Set(['AND', 'OR', 'XOR', 'NOT']);
-    const tokens = this.tokenize(expression.toUpperCase());
-    const output = [], ops = [];
-
-    tokens.forEach(token => {
-        if (/[A-D]/.test(token) && token.length === 1) output.push(token);
-        else if (operators.has(token)) {
-            while (ops.length && ops[ops.length - 1] !== '(' && precedence[ops[ops.length - 1]] >= precedence[token]) output.push(ops.pop());
-            ops.push(token);
-        } else if (token === '(') ops.push(token);
-        else if (token === ')') {
-            while (ops.length && ops[ops.length - 1] !== '(') output.push(ops.pop());
-            if (ops.pop() !== '(') throw new Error('Mismatched parentheses');
-        }
-    });
-    output.push(...ops.reverse());
-
-    const gates = [], stack = [];
-    let gateId = 0;
-    if (output.length === 0 && expression.trim()) throw new Error('Invalid expression');
-
-    output.forEach(token => {
-        if (operators.has(token)) {
-            const opCount = (token === 'NOT') ? 1 : 2;
-            if (stack.length < opCount) throw new Error(`Invalid syntax for ${token}`);
-            const gate = { id: `p_gate_${gateId++}`, type: token, inputs: stack.splice(-opCount, opCount), output: `p_g${gateId-1}_out` };
-            gates.push(gate);
-            stack.push(gate.output);
-        } else stack.push(token);
-    });
-
-    if (stack.length > 1) throw new Error('Invalid expression');
-    if (gates.length > 0) gates[gates.length - 1].output = 'Y';
-    else if (stack.length === 1) gates.push({ id: `p_gate_${gateId++}`, type: 'BUFFER', inputs: [stack[0]], output: 'Y' });
-
+    console.log('Parsing expression:', expression);
+    
+    const result = this.buildExpressionTree(expression);
+    const gates = this.convertTreeToGates(result.tree);
+    
+    console.log('Generated gates from expression:', gates);
     return { gates };
+  }
+
+  buildExpressionTree(expression) {
+    const tokens = this.tokenizeExpression(expression);
+    console.log('Tokenized:', tokens);
+    
+    return this.parseTokens(tokens, 0);
+  }
+
+  tokenizeExpression(expression) {
+    const tokens = [];
+    let i = 0;
+    const expr = expression.toUpperCase().trim();
+    
+    while (i < expr.length) {
+        if (expr[i] === ' ') {
+            i++;
+            continue;
+        }
+        
+        if (expr[i] === '(' || expr[i] === ')') {
+            tokens.push(expr[i]);
+            i++;
+        } else if (expr.substr(i, 3) === 'AND') {
+            tokens.push('AND');
+            i += 3;
+        } else if (expr.substr(i, 2) === 'OR') {
+            tokens.push('OR');
+            i += 2;
+        } else if (expr.substr(i, 3) === 'XOR') {
+            tokens.push('XOR');
+            i += 3;
+        } else if (expr.substr(i, 3) === 'NOT') {
+            tokens.push('NOT');
+            i += 3;
+        } else if (/[A-Z]/.test(expr[i])) {
+            tokens.push(expr[i]);
+            i++;
+        } else {
+            i++;
+        }
+    }
+    
+    return tokens;
+  }
+
+  parseTokens(tokens, pos) {
+    return this.parseOr(tokens, pos);
+  }
+
+  parseOr(tokens, pos) {
+    let { node: left, pos: newPos } = this.parseXor(tokens, pos);
+    
+    while (newPos < tokens.length && tokens[newPos] === 'OR') {
+        newPos++;
+        const { node: right, pos: nextPos } = this.parseXor(tokens, newPos);
+        left = { type: 'OR', inputs: [left, right] };
+        newPos = nextPos;
+    }
+    
+    return { node: left, pos: newPos };
+  }
+
+  parseXor(tokens, pos) {
+    let { node: left, pos: newPos } = this.parseAnd(tokens, pos);
+    
+    while (newPos < tokens.length && tokens[newPos] === 'XOR') {
+        newPos++;
+        const { node: right, pos: nextPos } = this.parseAnd(tokens, newPos);
+        left = { type: 'XOR', inputs: [left, right] };
+        newPos = nextPos;
+    }
+    
+    return { node: left, pos: newPos };
+  }
+
+  parseAnd(tokens, pos) {
+    let { node: left, pos: newPos } = this.parseNot(tokens, pos);
+    
+    while (newPos < tokens.length && tokens[newPos] === 'AND') {
+        newPos++;
+        const { node: right, pos: nextPos } = this.parseNot(tokens, newPos);
+        left = { type: 'AND', inputs: [left, right] };
+        newPos = nextPos;
+    }
+    
+    return { node: left, pos: newPos };
+  }
+
+  parseNot(tokens, pos) {
+    if (pos < tokens.length && tokens[pos] === 'NOT') {
+        const { node, pos: newPos } = this.parsePrimary(tokens, pos + 1);
+        return { node: { type: 'NOT', inputs: [node] }, pos: newPos };
+    }
+    
+    return this.parsePrimary(tokens, pos);
+  }
+
+  parsePrimary(tokens, pos) {
+    if (pos >= tokens.length) {
+        throw new Error('Unexpected end of expression');
+    }
+    
+    if (tokens[pos] === '(') {
+        const { node, pos: newPos } = this.parseTokens(tokens, pos + 1);
+        if (newPos >= tokens.length || tokens[newPos] !== ')') {
+            throw new Error('Missing closing parenthesis');
+        }
+        return { node, pos: newPos + 1 };
+    }
+    
+    if (/[A-Z]/.test(tokens[pos])) {
+        return { node: { type: 'VARIABLE', name: tokens[pos] }, pos: pos + 1 };
+    }
+    
+    throw new Error(`Unexpected token: ${tokens[pos]}`);
+  }
+
+  convertTreeToGates(tree) {
+    const gates = [];
+    let gateId = 0;
+    
+    const processNode = (node) => {
+        if (node.type === 'VARIABLE') {
+            return node.name;
+        }
+        
+        const inputs = node.inputs.map(input => processNode(input));
+        const gate = {
+            id: `gate_${gateId++}`,
+            type: node.type,
+            inputs: inputs,
+            output: `temp_${gateId - 1}`
+        };
+        
+        gates.push(gate);
+        return gate.output;
+    };
+    
+    processNode(tree);
+    
+    if (gates.length > 0) {
+        gates[gates.length - 1].output = 'FINAL';
+    }
+    
+    return gates;
   }
 
   drawLogicCircuit(circuit) {
