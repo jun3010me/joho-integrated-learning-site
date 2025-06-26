@@ -421,13 +421,52 @@ export class LogicLearning {
     const getLevel = id => levels[id] ?? (levels[id] = (gateDeps[id].size === 0) ? 0 : Math.max(...[...gateDeps[id]].map(getLevel)) + 1);
     gates.forEach(g => getLevel(g.id));
     const gatesByLevel = {};
-    gates.forEach(g => (gatesByLevel[levels[g.id]] = gatesByLevel[levels[g.id]] || []).push(g));
-    Object.keys(gatesByLevel).forEach(level => {
-        const levelGates = gatesByLevel[level];
-        const yStart = (400 - (levelGates.length - 1) * 100) / 2;
-        levelGates.forEach((g, i) => layout[g.id] = { x: 200 + level * 180, y: yStart + i * 100 });
+    let maxLevel = 0;
+    gates.forEach(g => {
+        const level = levels[g.id];
+        maxLevel = Math.max(maxLevel, level);
+        if (!gatesByLevel[level]) gatesByLevel[level] = [];
+        gatesByLevel[level].push(g);
     });
-    return layout;
+
+    const ySpacing = 100;
+    const xSpacing = 180;
+    const startX = 150;
+    let maxY = 0;
+
+    Object.keys(gatesByLevel).sort((a,b) => parseInt(a) - parseInt(b)).forEach(level => {
+        const levelGates = gatesByLevel[level].sort((a,b) => {
+            const aY = Math.min(...a.inputs.map(i => layout[gates.find(g=>g.output===i)?.id]?.y || 0));
+            const bY = Math.min(...b.inputs.map(i => layout[gates.find(g=>g.output===i)?.id]?.y || 0));
+            return aY - bY;
+        });
+
+        const levelHeight = (levelGates.length - 1) * ySpacing;
+        let yStart = ySpacing;
+        levelGates.forEach((g, i) => {
+            const yPos = yStart + i * ySpacing;
+            layout[g.id] = { x: startX + level * xSpacing, y: yPos };
+            maxY = Math.max(maxY, yPos);
+        });
+    });
+
+    const finalOutputs = gates.filter(g => ['S', 'C', 'Y'].includes(g.output));
+    if (finalOutputs.length > 1) {
+        const finalYPositions = finalOutputs.map(g => layout[g.id].y).sort((a,b) => a-b);
+        const avgY = finalYPositions.reduce((sum, y) => sum + y, 0) / finalOutputs.length;
+        const requiredSpread = (finalOutputs.length - 1) * ySpacing;
+        const startYFinal = avgY - requiredSpread / 2;
+
+        finalOutputs.sort((a,b) => layout[a.id].y - layout[b.id].y).forEach((g, i) => {
+            layout[g.id].y = startYFinal + i * ySpacing;
+            maxY = Math.max(maxY, layout[g.id].y);
+        });
+    }
+
+    const canvasWidth = startX + (maxLevel + 2) * xSpacing;
+    const canvasHeight = maxY + ySpacing;
+
+    return { layout, canvasSize: { width: canvasWidth, height: canvasHeight } };
   }
 
   parseLogicExpression(expression) {
