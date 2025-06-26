@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beautiful Circuit Layout Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-8">
+    <h1 class="text-2xl font-bold mb-4">美しい回路レイアウトテスト</h1>
+    
+    <div class="mb-4">
+        <p class="text-gray-600">配線とゲートの重複を解消した美しいレイアウトをテストします。</p>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="border rounded p-4 bg-gray-50">
+            <h2 class="text-lg font-bold mb-4">半加算回路</h2>
+            <div id="half-adder-container"></div>
+            <button id="test-half-adder" class="mt-4 bg-blue-500 text-white px-4 py-2 rounded">
+                半加算回路テスト
+            </button>
+        </div>
+        
+        <div class="border rounded p-4 bg-gray-50">
+            <h2 class="text-lg font-bold mb-4">全加算回路</h2>
+            <div id="full-adder-container"></div>
+            <button id="test-full-adder" class="mt-4 bg-green-500 text-white px-4 py-2 rounded">
+                全加算回路テスト
+            </button>
+        </div>
+    </div>
+    
+    <div class="mt-8 border rounded p-4 bg-white">
+        <h3 class="font-bold mb-4">改善されたレイアウト特徴:</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <h4 class="font-semibold text-blue-600 mb-2">配線の改善:</h4>
+                <ul class="text-sm space-y-1">
+                    <li>• 各入力に専用チャンネル割り当て</li>
+                    <li>• ゲートとの重複完全回避</li>
+                    <li>• 水平・垂直線のみで構成</li>
+                    <li>• 中間信号は赤色で区別</li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-semibold text-green-600 mb-2">ゲート配置の改善:</h4>
+                <ul class="text-sm space-y-1">
+                    <li>• 論理的な段階別配置</li>
+                    <li>• 十分な間隔確保</li>
+                    <li>• 配線経路との競合回避</li>
+                    <li>• 視覚的バランス最適化</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-4 border rounded p-4 bg-yellow-50">
+        <h3 class="font-bold mb-2">期待される視覚効果:</h3>
+        <p class="text-sm text-gray-700">
+            配線とゲートが重複せず、清潔で読みやすい回路図が表示される。
+            各接続が明確に追跡でき、論理的な流れが一目で理解できる。
+        </p>
+    </div>
+
+    <script type="module">
+        import { LogicLearning } from './src/simulators/logic/LogicLearning.js';
+        
+        // Half adder test
+        const halfAdderLogic = new LogicLearning();
+        const halfAdderContainer = document.getElementById('half-adder-container');
+        halfAdderLogic.render(halfAdderContainer);
+        
+        // Full adder test  
+        const fullAdderLogic = new LogicLearning();
+        const fullAdderContainer = document.getElementById('full-adder-container');
+        fullAdderLogic.render(fullAdderContainer);
+        
+        document.getElementById('test-half-adder').addEventListener('click', () => {
+            console.log('Testing half adder beautiful layout...');
+            halfAdderLogic.loadHalfAdder();
+            setTimeout(() => {
+                halfAdderLogic.generateTruthTableAndCircuit();
+            }, 300);
+        });
+        
+        document.getElementById('test-full-adder').addEventListener('click', () => {
+            console.log('Testing full adder beautiful layout...');
+            fullAdderLogic.loadFullAdder();
+            setTimeout(() => {
+                fullAdderLogic.generateTruthTableAndCircuit();
+            }, 300);
+        });
+        
+        // Auto-test both circuits
+        setTimeout(() => {
+            console.log('Auto-testing half adder...');
+            halfAdderLogic.loadHalfAdder();
+            setTimeout(() => {
+                halfAdderLogic.generateTruthTableAndCircuit();
+            }, 500);
+            
+            console.log('Auto-testing full adder...');
+            fullAdderLogic.loadFullAdder();
+            setTimeout(() => {
+                fullAdderLogic.generateTruthTableAndCircuit();
+            }, 1000);
+        }, 1500);
+    </script>
+</body>
+</html>

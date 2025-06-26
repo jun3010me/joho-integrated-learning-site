@@ -577,7 +577,7 @@ export class LogicLearning {
   }
 
   createHalfAdderCircuit(variables) {
-    console.log('Creating simplified half-adder circuit');
+    console.log('Creating simplified half-adder circuit with improved layout');
     
     const gates = [
         {
@@ -585,16 +585,16 @@ export class LogicLearning {
             type: 'XOR',
             inputs: ['A', 'B'],
             output: 'S',
-            x: 280,
-            y: 130
+            x: 300,
+            y: 120
         },
         {
             id: 'and_gate', 
             type: 'AND',
             inputs: ['A', 'B'],
             output: 'C',
-            x: 280,
-            y: 270
+            x: 300,
+            y: 250
         }
     ];
     
@@ -605,7 +605,7 @@ export class LogicLearning {
     
     const canvasSize = { width: 600, height: 400 };
     
-    console.log('Half-adder circuit created:', { gates, inputConnections, canvasSize });
+    console.log('Half-adder circuit created with improved layout:', { gates, inputConnections, canvasSize });
     
     return {
         variables,
@@ -617,48 +617,49 @@ export class LogicLearning {
   }
 
   createFullAdderCircuit(variables) {
-    console.log('Creating simplified full-adder circuit');
+    console.log('Creating simplified full-adder circuit with improved layout');
     
+    // Optimized layout to prevent wire-gate overlaps
     const gates = [
         {
             id: 'xor1_gate',
             type: 'XOR',
             inputs: ['A', 'B'],
             output: 'AB_XOR',
-            x: 200,
-            y: 100
-        },
-        {
-            id: 'xor2_gate',
-            type: 'XOR',
-            inputs: ['AB_XOR', 'C'],
-            output: 'S',
-            x: 380,
-            y: 100
+            x: 220,
+            y: 80
         },
         {
             id: 'and1_gate',
             type: 'AND',
             inputs: ['A', 'B'],
             output: 'AB_AND',
-            x: 200,
-            y: 200
+            x: 220,
+            y: 180
+        },
+        {
+            id: 'xor2_gate',
+            type: 'XOR',
+            inputs: ['AB_XOR', 'C'],
+            output: 'S',
+            x: 420,
+            y: 80
         },
         {
             id: 'and2_gate',
             type: 'AND',
             inputs: ['C', 'AB_XOR'],
             output: 'C_AB_AND',
-            x: 380,
-            y: 200
+            x: 420,
+            y: 180
         },
         {
             id: 'or_gate',
             type: 'OR',
             inputs: ['AB_AND', 'C_AB_AND'],
             output: 'C',
-            x: 500,
-            y: 250
+            x: 540,
+            y: 280
         }
     ];
     
@@ -668,9 +669,9 @@ export class LogicLearning {
         'C': ['xor2_gate', 'and2_gate']
     };
     
-    const canvasSize = { width: 650, height: 350 };
+    const canvasSize = { width: 700, height: 400 };
     
-    console.log('Full-adder circuit created:', { gates, inputConnections, canvasSize });
+    console.log('Full-adder circuit created with improved layout:', { gates, inputConnections, canvasSize });
     
     return {
         variables,
@@ -1174,22 +1175,31 @@ export class LogicLearning {
       
       const gateInputX = gate.x - gateWidth/2;
       
-      // Create unique path for this input-gate connection
-      const pathOffset = pathIndex * 25; // Offset each path slightly
-      const midX = inputPos.x + 100 + pathOffset;
+      // Improved routing to avoid gate overlaps
+      // Use dedicated channels for each input
+      let channelX;
+      if (inputVar === 'A') {
+          channelX = inputPos.x + 80 + (pathIndex * 40);
+      } else if (inputVar === 'B') {
+          channelX = inputPos.x + 100 + (pathIndex * 40);
+      } else if (inputVar === 'C') {
+          channelX = inputPos.x + 120 + (pathIndex * 40);
+      } else {
+          channelX = inputPos.x + 90 + (pathIndex * 30);
+      }
       
-      console.log(`Drawing wire: ${inputVar} → ${gate.id} via path ${pathIndex + 1}`);
+      console.log(`Drawing improved wire: ${inputVar} → ${gate.id} via channel ${channelX}`);
       
       ctx.beginPath();
       ctx.moveTo(inputPos.x + 8, inputPos.y);
-      ctx.lineTo(midX, inputPos.y);
-      ctx.lineTo(midX, gateInputY);
+      ctx.lineTo(channelX, inputPos.y);
+      ctx.lineTo(channelX, gateInputY);
       ctx.lineTo(gateInputX, gateInputY);
       ctx.stroke();
       
-      // Draw connection dots
+      // Draw connection dots at branch points
       ctx.beginPath();
-      ctx.arc(midX, inputPos.y, 3, 0, 2 * Math.PI);
+      ctx.arc(channelX, inputPos.y, 3, 0, 2 * Math.PI);
       ctx.fillStyle = '#374151';
       ctx.fill();
   }
@@ -1209,18 +1219,44 @@ export class LogicLearning {
           targetGate.y - gateHeight/4 + (inputIndex * gateHeight/2);
       const toX = targetGate.x - gateWidth/2;
       
-      // Draw intermediate wire with red color
+      // Draw intermediate wire with red color and improved routing
       ctx.strokeStyle = '#dc2626';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(fromX, fromY);
       
-      // Create a simple L-shaped path
-      const midX = fromX + 30;
-      ctx.lineTo(midX, fromY);
-      ctx.lineTo(midX, toY);
-      ctx.lineTo(toX, toY);
+      // Create cleaner routing that avoids gate overlaps
+      let routingX, routingY;
+      
+      // For horizontal connections, use direct path if clear
+      if (Math.abs(fromY - toY) < 20) {
+          // Direct horizontal connection
+          ctx.lineTo(toX, toY);
+      } else {
+          // Use L-shaped routing with better spacing
+          routingX = fromX + 50;
+          
+          // Route around other gates
+          if (fromY < toY) {
+              // Going down
+              routingY = fromY + 30;
+          } else {
+              // Going up  
+              routingY = fromY - 30;
+          }
+          
+          ctx.lineTo(routingX, fromY);
+          ctx.lineTo(routingX, toY);
+          ctx.lineTo(toX, toY);
+      }
+      
       ctx.stroke();
+      
+      // Draw connection dots for intermediate signals
+      ctx.beginPath();
+      ctx.arc(fromX + 10, fromY, 3, 0, 2 * Math.PI);
+      ctx.fillStyle = '#dc2626';
+      ctx.fill();
       
       // Reset stroke color
       ctx.strokeStyle = '#374151';
