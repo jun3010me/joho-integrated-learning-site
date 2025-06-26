@@ -385,9 +385,11 @@ export class LogicLearning {
             
             if (gateIndex === parsedGates.length - 1) {
                 outputName = expr.name;
+                console.log(`Final gate for expression ${expr.name}: ${gateId} -> ${outputName}`);
             } else {
                 outputName = `intermediate_${gateId}`;
                 intermediateSignals[outputName] = gateId;
+                console.log(`Intermediate gate: ${gateId} -> ${outputName}`);
             }
             
             const processedGate = {
@@ -461,6 +463,11 @@ export class LogicLearning {
   }
 
   calculateLayout(gates, variables) {
+    const GRID_SIZE = 40;
+    const GATE_WIDTH = 80;
+    const GATE_HEIGHT = 40;
+    const WIRE_MARGIN = 25;
+    
     const layout = {}, levels = {}, gateDeps = {};
     gates.forEach(g => gateDeps[g.id] = new Set());
     gates.forEach(g => g.inputs.forEach(i => {
@@ -478,10 +485,14 @@ export class LogicLearning {
         gatesByLevel[level].push(g);
     });
 
-    const ySpacing = 100;
-    const xSpacing = 180;
-    const startX = 150;
+    const ySpacing = Math.max(100, GRID_SIZE * 3);
+    const xSpacing = Math.max(180, GATE_WIDTH + WIRE_MARGIN * 2 + GRID_SIZE);
+    const startX = Math.max(150, GRID_SIZE * 4);
     let maxY = 0;
+
+    console.log('=== Grid-based Layout Debug ===');
+    console.log(`Grid size: ${GRID_SIZE}px, Gate size: ${GATE_WIDTH}x${GATE_HEIGHT}px`);
+    console.log(`Spacing - X: ${xSpacing}px, Y: ${ySpacing}px`);
 
     Object.keys(gatesByLevel).sort((a,b) => parseInt(a) - parseInt(b)).forEach(level => {
         const levelGates = gatesByLevel[level].sort((a,b) => {
@@ -494,8 +505,15 @@ export class LogicLearning {
         let yStart = ySpacing;
         levelGates.forEach((g, i) => {
             const yPos = yStart + i * ySpacing;
-            layout[g.id] = { x: startX + level * xSpacing, y: yPos };
-            maxY = Math.max(maxY, yPos);
+            const xPos = startX + level * xSpacing;
+            
+            const gridX = Math.round(xPos / GRID_SIZE) * GRID_SIZE;
+            const gridY = Math.round(yPos / GRID_SIZE) * GRID_SIZE;
+            
+            layout[g.id] = { x: gridX, y: gridY };
+            maxY = Math.max(maxY, gridY);
+            
+            console.log(`Gate ${g.id} positioned at grid (${gridX}, ${gridY})`);
         });
     });
 
@@ -512,10 +530,99 @@ export class LogicLearning {
         });
     }
 
-    const canvasWidth = startX + (maxLevel + 2) * xSpacing;
-    const canvasHeight = maxY + ySpacing;
+    const canvasWidth = Math.round((startX + (maxLevel + 2) * xSpacing) / GRID_SIZE) * GRID_SIZE;
+    const canvasHeight = Math.round((maxY + ySpacing) / GRID_SIZE) * GRID_SIZE;
 
-    return { layout, canvasSize: { width: canvasWidth, height: canvasHeight } };
+    const qualityMetrics = this.calculateLayoutQuality(layout, gates, variables, { 
+        GRID_SIZE, GATE_WIDTH, GATE_HEIGHT, WIRE_MARGIN 
+    });
+    
+    console.log('Layout Quality Metrics:', qualityMetrics);
+
+    return { layout, canvasSize: { width: canvasWidth, height: canvasHeight }, qualityMetrics };
+  }
+
+  calculateLayoutQuality(layout, gates, variables, config) {
+    const { GRID_SIZE, GATE_WIDTH, GATE_HEIGHT, WIRE_MARGIN } = config;
+    let totalWireLength = 0;
+    let gateOverlaps = 0;
+    let wireIntersections = 0;
+    let totalConnections = 0;
+
+    const gateRects = gates.map(gate => ({
+        id: gate.id,
+        x: layout[gate.id].x - GATE_WIDTH / 2,
+        y: layout[gate.id].y - GATE_HEIGHT / 2,
+        width: GATE_WIDTH,
+        height: GATE_HEIGHT
+    }));
+
+    gates.forEach(gate => {
+        gate.inputs.forEach(input => {
+            totalConnections++;
+            
+            const sourceGate = gates.find(g => g.output === input);
+            if (sourceGate) {
+                const from = layout[sourceGate.id];
+                const to = layout[gate.id];
+                const wireLength = Math.abs(from.x - to.x) + Math.abs(from.y - to.y);
+                totalWireLength += wireLength;
+                
+                if (this.checkWireGateOverlap(from, to, gateRects, gate.id, sourceGate.id)) {
+                    gateOverlaps++;
+                }
+            }
+        });
+    });
+
+    const averageWireLength = totalConnections > 0 ? totalWireLength / totalConnections : 0;
+    const overlapScore = Math.max(0, 100 - (gateOverlaps * 20));
+    const lengthScore = Math.max(0, 100 - Math.max(0, (averageWireLength - 200) / 5));
+    const overallScore = Math.round((overlapScore + lengthScore) / 2);
+
+    const metrics = {
+        gateOverlaps,
+        wireIntersections,
+        totalWireLength,
+        averageWireLength: Math.round(averageWireLength),
+        overlapScore,
+        lengthScore: Math.round(lengthScore),
+        overallScore,
+        gridAligned: true
+    };
+
+    console.log('=== Wire Quality Check Results ===');
+    console.log(`- Gate overlaps: ${gateOverlaps} locations ${gateOverlaps === 0 ? '✓' : '⚠'}`);
+    console.log(`- Wire intersections: ${wireIntersections} locations`);
+    console.log(`- Total wire length: ${totalWireLength}px`);
+    console.log(`- Average wire length: ${metrics.averageWireLength}px`);
+    console.log(`- Quality score: ${overallScore}/100`);
+
+    return metrics;
+  }
+
+  checkWireGateOverlap(from, to, gateRects, excludeGateId1, excludeGateId2) {
+    const wireRect = {
+        x: Math.min(from.x, to.x) - 2,
+        y: Math.min(from.y, to.y) - 2,
+        width: Math.abs(to.x - from.x) + 4,
+        height: Math.abs(to.y - from.y) + 4
+    };
+
+    return gateRects.some(gateRect => {
+        if (gateRect.id === excludeGateId1 || gateRect.id === excludeGateId2) {
+            return false;
+        }
+        
+        return this.rectsOverlap(wireRect, gateRect);
+    });
+  }
+
+  rectsOverlap(rect1, rect2) {
+    return rect1.x < rect2.x + rect2.width &&
+           rect1.x + rect1.width > rect2.x &&
+           rect1.y < rect2.y + rect2.height &&
+           rect1.y + rect1.height > rect2.y;
   }
 
   parseLogicExpression(expression) {
@@ -887,12 +994,21 @@ export class LogicLearning {
 
           this.ctx.moveTo(startX, startY);
 
-          if (Math.abs(startY - endY) < 5) {
-              this.ctx.lineTo(endX, endY);
+          const path = this.calculateAvoidancePath(from, to);
+          
+          if (path.length === 0) {
+              if (Math.abs(startY - endY) < 5) {
+                  this.ctx.lineTo(endX, endY);
+              } else {
+                  const midX = startX + Math.max(60, (endX - startX) * 0.6);
+                  this.ctx.lineTo(midX, startY);
+                  this.ctx.lineTo(midX, endY);
+                  this.ctx.lineTo(endX, endY);
+              }
           } else {
-              const midX = startX + Math.max(60, (endX - startX) * 0.6);
-              this.ctx.lineTo(midX, startY);
-              this.ctx.lineTo(midX, endY);
+              path.forEach(point => {
+                  this.ctx.lineTo(point.x, point.y);
+              });
               this.ctx.lineTo(endX, endY);
           }
 
@@ -910,6 +1026,75 @@ export class LogicLearning {
               this.ctx.fillStyle = '#374151';
               this.ctx.fill();
           }
+      }
+
+      calculateAvoidancePath(from, to) {
+          const WIRE_MARGIN = 25;
+          const path = [];
+          
+          const directPath = { 
+              x1: from.x, y1: from.y, 
+              x2: to.x, y2: to.y 
+          };
+          
+          const conflictingObstacles = this.obstacles.filter(obstacle => 
+              this.lineIntersectsRect(directPath, {
+                  x: obstacle.x - obstacle.width / 2 - WIRE_MARGIN,
+                  y: obstacle.y - obstacle.height / 2 - WIRE_MARGIN,
+                  width: obstacle.width + WIRE_MARGIN * 2,
+                  height: obstacle.height + WIRE_MARGIN * 2
+              })
+          );
+
+          if (conflictingObstacles.length === 0) {
+              return [];
+          }
+
+          const detourY = from.y < to.y ? 
+              Math.min(...conflictingObstacles.map(o => o.y - o.height / 2 - WIRE_MARGIN)) :
+              Math.max(...conflictingObstacles.map(o => o.y + o.height / 2 + WIRE_MARGIN));
+
+          const midX = from.x + Math.max(60, (to.x - from.x) * 0.6);
+
+          path.push({ x: midX, y: from.y });
+          path.push({ x: midX, y: detourY });
+          path.push({ x: to.x - 35, y: detourY });
+
+          return path;
+      }
+
+      lineIntersectsRect(line, rect) {
+          const { x1, y1, x2, y2 } = line;
+          const { x, y, width, height } = rect;
+          
+          const left = x;
+          const right = x + width;
+          const top = y;
+          const bottom = y + height;
+          
+          if ((x1 >= left && x1 <= right && y1 >= top && y1 <= bottom) ||
+              (x2 >= left && x2 <= right && y2 >= top && y2 <= bottom)) {
+              return true;
+          }
+          
+          if (this.lineIntersectsLine(x1, y1, x2, y2, left, top, right, top) ||
+              this.lineIntersectsLine(x1, y1, x2, y2, right, top, right, bottom) ||
+              this.lineIntersectsLine(x1, y1, x2, y2, right, bottom, left, bottom) ||
+              this.lineIntersectsLine(x1, y1, x2, y2, left, bottom, left, top)) {
+              return true;
+          }
+          
+          return false;
+      }
+
+      lineIntersectsLine(x1, y1, x2, y2, x3, y3, x4, y4) {
+          const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+          if (Math.abs(denom) < 1e-10) return false;
+          
+          const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
+          const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
+          
+          return t >= 0 && t <= 1 && u >= 0 && u <= 1;
       }
   }
 
